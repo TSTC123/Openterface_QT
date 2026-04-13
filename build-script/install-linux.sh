@@ -227,6 +227,8 @@ sudo apt-get install -y --allow-unauthenticated \
     libavutil-dev \
     libswresample-dev \
     libswscale-dev \
+    libavdevice-dev \
+    libavfilter-dev \
     ffmpeg
 
 echo "👥 Setting up user permissions..."
@@ -353,35 +355,58 @@ LIBAVCODEC=$(find /usr/lib -name "libavcodec.a" 2>/dev/null | head -1)
 LIBAVUTIL=$(find /usr/lib -name "libavutil.a" 2>/dev/null | head -1)
 LIBSWRESAMPLE=$(find /usr/lib -name "libswresample.a" 2>/dev/null | head -1)
 LIBSWSCALE=$(find /usr/lib -name "libswscale.a" 2>/dev/null | head -1)
+LIBAVDEVICE=$(find /usr/lib -name "libavdevice.a" 2>/dev/null | head -1)
+LIBAVFILTER=$(find /usr/lib -name "libavfilter.a" 2>/dev/null | head -1)
+
+# Derive FFMPEG_PREFIX from the detected library path (e.g. /usr/lib/x86_64-linux-gnu -> /usr)
+if [ -n "$LIBAVFORMAT" ]; then
+    FFMPEG_LIB_DIR=$(dirname "$LIBAVFORMAT")
+    FFMPEG_PREFIX=$(dirname "$FFMPEG_LIB_DIR")
+    # Handle multiarch paths like /usr/lib/x86_64-linux-gnu -> /usr
+    case "$FFMPEG_LIB_DIR" in
+        */lib/x86_64-linux-gnu|*/lib/aarch64-linux-gnu|*/lib/arm-linux-gnueabihf)
+            FFMPEG_PREFIX=$(dirname "$(dirname "$FFMPEG_LIB_DIR")")
+            ;;
+    esac
+else
+    FFMPEG_PREFIX="/usr"
+fi
+echo "Detected FFMPEG_PREFIX: $FFMPEG_PREFIX"
 
 # Check if all FFmpeg libraries were found
-if [ -n "$LIBAVFORMAT" ] && [ -n "$LIBAVCODEC" ] && [ -n "$LIBAVUTIL" ] && [ -n "$LIBSWRESAMPLE" ] && [ -n "$LIBSWSCALE" ]; then
+if [ -n "$LIBAVFORMAT" ] && [ -n "$LIBAVCODEC" ] && [ -n "$LIBAVUTIL" ] && [ -n "$LIBSWRESAMPLE" ] && [ -n "$LIBSWSCALE" ] && [ -n "$LIBAVDEVICE" ] && [ -n "$LIBAVFILTER" ]; then
     echo "✅ Found FFmpeg static libraries:"
-    echo "  - libavformat: $LIBAVFORMAT"
-    echo "  - libavcodec: $LIBAVCODEC"
-    echo "  - libavutil: $LIBAVUTIL"
+    echo "  - libavformat:   $LIBAVFORMAT"
+    echo "  - libavcodec:    $LIBAVCODEC"
+    echo "  - libavutil:     $LIBAVUTIL"
     echo "  - libswresample: $LIBSWRESAMPLE"
-    echo "  - libswscale: $LIBSWSCALE"
+    echo "  - libswscale:    $LIBSWSCALE"
+    echo "  - libavdevice:   $LIBAVDEVICE"
+    echo "  - libavfilter:   $LIBAVFILTER"
     
-    FFMPEG_LIBRARIES="$LIBAVFORMAT;$LIBAVCODEC;$LIBAVUTIL;$LIBSWRESAMPLE;$LIBSWSCALE"
+    FFMPEG_LIBRARIES="$LIBAVDEVICE;$LIBAVFILTER;$LIBAVFORMAT;$LIBAVCODEC;$LIBSWRESAMPLE;$LIBSWSCALE;$LIBAVUTIL"
     
     cmake .. \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_PREFIX_PATH="$QT_CMAKE_PATH" \
+        -DFFMPEG_PREFIX="$FFMPEG_PREFIX" \
         -DFFMPEG_LIBRARIES="$FFMPEG_LIBRARIES" \
         -DCMAKE_SYSTEM_PROCESSOR="$UNAME_ARCH"
 else
     echo "⚠️  Some FFmpeg static libraries not found, using default paths"
     echo "Found libraries:"
-    [ -n "$LIBAVFORMAT" ] && echo "  - libavformat: $LIBAVFORMAT" || echo "  - libavformat: NOT FOUND"
-    [ -n "$LIBAVCODEC" ] && echo "  - libavcodec: $LIBAVCODEC" || echo "  - libavcodec: NOT FOUND"
-    [ -n "$LIBAVUTIL" ] && echo "  - libavutil: $LIBAVUTIL" || echo "  - libavutil: NOT FOUND"
+    [ -n "$LIBAVFORMAT" ]   && echo "  - libavformat:   $LIBAVFORMAT"   || echo "  - libavformat:   NOT FOUND"
+    [ -n "$LIBAVCODEC" ]    && echo "  - libavcodec:    $LIBAVCODEC"    || echo "  - libavcodec:    NOT FOUND"
+    [ -n "$LIBAVUTIL" ]     && echo "  - libavutil:     $LIBAVUTIL"     || echo "  - libavutil:     NOT FOUND"
     [ -n "$LIBSWRESAMPLE" ] && echo "  - libswresample: $LIBSWRESAMPLE" || echo "  - libswresample: NOT FOUND"
-    [ -n "$LIBSWSCALE" ] && echo "  - libswscale: $LIBSWSCALE" || echo "  - libswscale: NOT FOUND"
+    [ -n "$LIBSWSCALE" ]    && echo "  - libswscale:    $LIBSWSCALE"    || echo "  - libswscale:    NOT FOUND"
+    [ -n "$LIBAVDEVICE" ]   && echo "  - libavdevice:   $LIBAVDEVICE"   || echo "  - libavdevice:   NOT FOUND"
+    [ -n "$LIBAVFILTER" ]   && echo "  - libavfilter:   $LIBAVFILTER"   || echo "  - libavfilter:   NOT FOUND"
     
     cmake .. \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_PREFIX_PATH="$QT_CMAKE_PATH" \
+        -DFFMPEG_PREFIX="$FFMPEG_PREFIX" \
         -DCMAKE_SYSTEM_PROCESSOR="$UNAME_ARCH"
 fi
 
