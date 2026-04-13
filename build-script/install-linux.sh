@@ -350,6 +350,22 @@ echo "Using Qt6 cmake from: $QT_CMAKE_PATH"
 
 # Auto-detect FFmpeg library paths
 echo "🔍 Auto-detecting FFmpeg library paths..."
+
+# Helper: derive FFMPEG_PREFIX from a library path (handles multiarch dirs)
+derive_ffmpeg_prefix() {
+    local lib_dir
+    lib_dir=$(dirname "$1")
+    case "$lib_dir" in
+        */lib/x86_64-linux-gnu|*/lib/aarch64-linux-gnu|*/lib/arm-linux-gnueabihf)
+            dirname "$(dirname "$lib_dir")"
+            ;;
+        *)
+            dirname "$lib_dir"
+            ;;
+    esac
+}
+
+# --- Try static libraries first (.a) ---
 LIBAVFORMAT=$(find /usr/lib -name "libavformat.a" 2>/dev/null | head -1)
 LIBAVCODEC=$(find /usr/lib -name "libavcodec.a" 2>/dev/null | head -1)
 LIBAVUTIL=$(find /usr/lib -name "libavutil.a" 2>/dev/null | head -1)
@@ -358,24 +374,11 @@ LIBSWSCALE=$(find /usr/lib -name "libswscale.a" 2>/dev/null | head -1)
 LIBAVDEVICE=$(find /usr/lib -name "libavdevice.a" 2>/dev/null | head -1)
 LIBAVFILTER=$(find /usr/lib -name "libavfilter.a" 2>/dev/null | head -1)
 
-# Derive FFMPEG_PREFIX from the detected library path (e.g. /usr/lib/x86_64-linux-gnu -> /usr)
-if [ -n "$LIBAVFORMAT" ]; then
-    FFMPEG_LIB_DIR=$(dirname "$LIBAVFORMAT")
-    FFMPEG_PREFIX=$(dirname "$FFMPEG_LIB_DIR")
-    # Handle multiarch paths like /usr/lib/x86_64-linux-gnu -> /usr
-    case "$FFMPEG_LIB_DIR" in
-        */lib/x86_64-linux-gnu|*/lib/aarch64-linux-gnu|*/lib/arm-linux-gnueabihf)
-            FFMPEG_PREFIX=$(dirname "$(dirname "$FFMPEG_LIB_DIR")")
-            ;;
-    esac
-else
-    FFMPEG_PREFIX="/usr"
-fi
-echo "Detected FFMPEG_PREFIX: $FFMPEG_PREFIX"
-
-# Check if all FFmpeg libraries were found
-if [ -n "$LIBAVFORMAT" ] && [ -n "$LIBAVCODEC" ] && [ -n "$LIBAVUTIL" ] && [ -n "$LIBSWRESAMPLE" ] && [ -n "$LIBSWSCALE" ] && [ -n "$LIBAVDEVICE" ] && [ -n "$LIBAVFILTER" ]; then
-    echo "✅ Found FFmpeg static libraries:"
+if [ -n "$LIBAVFORMAT" ] && [ -n "$LIBAVCODEC" ] && [ -n "$LIBAVUTIL" ] && \
+   [ -n "$LIBSWRESAMPLE" ] && [ -n "$LIBSWSCALE" ] && [ -n "$LIBAVDEVICE" ] && [ -n "$LIBAVFILTER" ]; then
+    # All static libraries found
+    FFMPEG_PREFIX=$(derive_ffmpeg_prefix "$LIBAVFORMAT")
+    echo "✅ Found FFmpeg static libraries (.a):"
     echo "  - libavformat:   $LIBAVFORMAT"
     echo "  - libavcodec:    $LIBAVCODEC"
     echo "  - libavutil:     $LIBAVUTIL"
@@ -383,30 +386,44 @@ if [ -n "$LIBAVFORMAT" ] && [ -n "$LIBAVCODEC" ] && [ -n "$LIBAVUTIL" ] && [ -n 
     echo "  - libswscale:    $LIBSWSCALE"
     echo "  - libavdevice:   $LIBAVDEVICE"
     echo "  - libavfilter:   $LIBAVFILTER"
-    
+    echo "  FFMPEG_PREFIX:   $FFMPEG_PREFIX"
+
     FFMPEG_LIBRARIES="$LIBAVDEVICE;$LIBAVFILTER;$LIBAVFORMAT;$LIBAVCODEC;$LIBSWRESAMPLE;$LIBSWSCALE;$LIBAVUTIL"
-    
+
     cmake .. \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_PREFIX_PATH="$QT_CMAKE_PATH" \
         -DFFMPEG_PREFIX="$FFMPEG_PREFIX" \
         -DFFMPEG_LIBRARIES="$FFMPEG_LIBRARIES" \
+        -DUSE_SHARED_FFMPEG=OFF \
         -DCMAKE_SYSTEM_PROCESSOR="$UNAME_ARCH"
 else
-    echo "⚠️  Some FFmpeg static libraries not found, using default paths"
-    echo "Found libraries:"
-    [ -n "$LIBAVFORMAT" ]   && echo "  - libavformat:   $LIBAVFORMAT"   || echo "  - libavformat:   NOT FOUND"
-    [ -n "$LIBAVCODEC" ]    && echo "  - libavcodec:    $LIBAVCODEC"    || echo "  - libavcodec:    NOT FOUND"
-    [ -n "$LIBAVUTIL" ]     && echo "  - libavutil:     $LIBAVUTIL"     || echo "  - libavutil:     NOT FOUND"
-    [ -n "$LIBSWRESAMPLE" ] && echo "  - libswresample: $LIBSWRESAMPLE" || echo "  - libswresample: NOT FOUND"
-    [ -n "$LIBSWSCALE" ]    && echo "  - libswscale:    $LIBSWSCALE"    || echo "  - libswscale:    NOT FOUND"
-    [ -n "$LIBAVDEVICE" ]   && echo "  - libavdevice:   $LIBAVDEVICE"   || echo "  - libavdevice:   NOT FOUND"
-    [ -n "$LIBAVFILTER" ]   && echo "  - libavfilter:   $LIBAVFILTER"   || echo "  - libavfilter:   NOT FOUND"
-    
+    echo "⚠️  Static FFmpeg libraries (.a) not fully found, falling back to shared (.so)..."
+    echo "Static libraries status:"
+    [ -n "$LIBAVFORMAT" ]   && echo "  ✓ libavformat.a:   $LIBAVFORMAT"   || echo "  ✗ libavformat.a:   NOT FOUND"
+    [ -n "$LIBAVCODEC" ]    && echo "  ✓ libavcodec.a:    $LIBAVCODEC"    || echo "  ✗ libavcodec.a:    NOT FOUND"
+    [ -n "$LIBAVUTIL" ]     && echo "  ✓ libavutil.a:     $LIBAVUTIL"     || echo "  ✗ libavutil.a:     NOT FOUND"
+    [ -n "$LIBSWRESAMPLE" ] && echo "  ✓ libswresample.a: $LIBSWRESAMPLE" || echo "  ✗ libswresample.a: NOT FOUND"
+    [ -n "$LIBSWSCALE" ]    && echo "  ✓ libswscale.a:    $LIBSWSCALE"    || echo "  ✗ libswscale.a:    NOT FOUND"
+    [ -n "$LIBAVDEVICE" ]   && echo "  ✓ libavdevice.a:   $LIBAVDEVICE"   || echo "  ✗ libavdevice.a:   NOT FOUND"
+    [ -n "$LIBAVFILTER" ]   && echo "  ✓ libavfilter.a:   $LIBAVFILTER"   || echo "  ✗ libavfilter.a:   NOT FOUND"
+
+    # --- Fall back to shared libraries (.so) ---
+    LIBAVFORMAT_SO=$(find /usr/lib -name "libavformat.so" 2>/dev/null | head -1)
+    if [ -n "$LIBAVFORMAT_SO" ]; then
+        FFMPEG_PREFIX=$(derive_ffmpeg_prefix "$LIBAVFORMAT_SO")
+    else
+        FFMPEG_PREFIX="/usr"
+    fi
+    echo ""
+    echo "🔧 Using shared FFmpeg mode (-DUSE_SHARED_FFMPEG=ON)"
+    echo "  FFMPEG_PREFIX: $FFMPEG_PREFIX"
+
     cmake .. \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_PREFIX_PATH="$QT_CMAKE_PATH" \
         -DFFMPEG_PREFIX="$FFMPEG_PREFIX" \
+        -DUSE_SHARED_FFMPEG=ON \
         -DCMAKE_SYSTEM_PROCESSOR="$UNAME_ARCH"
 fi
 
