@@ -346,44 +346,15 @@ fi
 
 echo "Using Qt6 cmake from: $QT_CMAKE_PATH"
 
-# Auto-detect FFmpeg library paths
-echo "🔍 Auto-detecting FFmpeg library paths..."
-LIBAVFORMAT=$(find /usr/lib -name "libavformat.a" 2>/dev/null | head -1)
-LIBAVCODEC=$(find /usr/lib -name "libavcodec.a" 2>/dev/null | head -1)
-LIBAVUTIL=$(find /usr/lib -name "libavutil.a" 2>/dev/null | head -1)
-LIBSWRESAMPLE=$(find /usr/lib -name "libswresample.a" 2>/dev/null | head -1)
-LIBSWSCALE=$(find /usr/lib -name "libswscale.a" 2>/dev/null | head -1)
+# Use system-installed shared FFmpeg libraries via pkg-config
+# (apt installs shared .so libraries only, not static .a files)
+echo "🔍 Using system-installed shared FFmpeg libraries (via pkg-config)..."
 
-# Check if all FFmpeg libraries were found
-if [ -n "$LIBAVFORMAT" ] && [ -n "$LIBAVCODEC" ] && [ -n "$LIBAVUTIL" ] && [ -n "$LIBSWRESAMPLE" ] && [ -n "$LIBSWSCALE" ]; then
-    echo "✅ Found FFmpeg static libraries:"
-    echo "  - libavformat: $LIBAVFORMAT"
-    echo "  - libavcodec: $LIBAVCODEC"
-    echo "  - libavutil: $LIBAVUTIL"
-    echo "  - libswresample: $LIBSWRESAMPLE"
-    echo "  - libswscale: $LIBSWSCALE"
-    
-    FFMPEG_LIBRARIES="$LIBAVFORMAT;$LIBAVCODEC;$LIBAVUTIL;$LIBSWRESAMPLE;$LIBSWSCALE"
-    
-    cmake .. \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_PREFIX_PATH="$QT_CMAKE_PATH" \
-        -DFFMPEG_LIBRARIES="$FFMPEG_LIBRARIES" \
-        -DCMAKE_SYSTEM_PROCESSOR="$UNAME_ARCH"
-else
-    echo "⚠️  Some FFmpeg static libraries not found, using default paths"
-    echo "Found libraries:"
-    [ -n "$LIBAVFORMAT" ] && echo "  - libavformat: $LIBAVFORMAT" || echo "  - libavformat: NOT FOUND"
-    [ -n "$LIBAVCODEC" ] && echo "  - libavcodec: $LIBAVCODEC" || echo "  - libavcodec: NOT FOUND"
-    [ -n "$LIBAVUTIL" ] && echo "  - libavutil: $LIBAVUTIL" || echo "  - libavutil: NOT FOUND"
-    [ -n "$LIBSWRESAMPLE" ] && echo "  - libswresample: $LIBSWRESAMPLE" || echo "  - libswresample: NOT FOUND"
-    [ -n "$LIBSWSCALE" ] && echo "  - libswscale: $LIBSWSCALE" || echo "  - libswscale: NOT FOUND"
-    
-    cmake .. \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_PREFIX_PATH="$QT_CMAKE_PATH" \
-        -DCMAKE_SYSTEM_PROCESSOR="$UNAME_ARCH"
-fi
+cmake .. \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_PREFIX_PATH="$QT_CMAKE_PATH" \
+    -DUSE_SHARED_FFMPEG=ON \
+    -DCMAKE_SYSTEM_PROCESSOR="$UNAME_ARCH"
 
 make clean
 
