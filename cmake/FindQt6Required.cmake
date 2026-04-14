@@ -1,12 +1,12 @@
-# FindQt6Required.cmake - Ensure Qt 6.6.3+ is used for the project
+# FindQt6Required.cmake - Ensure Qt 6.5.3+ (Windows) / 6.4.2+ (Linux) is used for the project
 #
-# This module ensures that Qt 6.6.3 or higher is found and used.
+# This module ensures that Qt 6.5.3 (Windows) or 6.4.2 (Linux) or higher is found and used.
 # It will fail the configuration if Qt is not found or if the version is too old.
 #
 # Usage:
 #   find_package(Qt6Required REQUIRED)
 #
-# This will set up all the standard Qt6 variables and ensure version 6.6.3+
+# This will set up all the standard Qt6 variables and ensure the minimum version requirement
 
 cmake_minimum_required(VERSION 3.16)
 
@@ -15,7 +15,7 @@ if(WIN32)
     # Windows can use Qt 6.5.3+ (standard Qt installer version)
     set(QT6_MINIMUM_VERSION "6.5.3")
 else()
-    # Linux requires Qt 6.6.3+ for static builds
+    # Linux requires Qt 6.4.2+
     set(QT6_MINIMUM_VERSION "6.4.2")
 endif()
 
@@ -64,15 +64,15 @@ if(NOT Qt6_FOUND)
             "  - /opt/Qt6 (custom installation)\n"
             "\n"
             "To resolve this issue:\n"
-            "1. Ensure Qt 6.6.3+ is installed from source in /opt/Qt6\n"
-            "2. Run the installation script: ./docker/install-qt-6.6.3-from-source.sh\n"
+            "1. Ensure Qt ${QT6_MINIMUM_VERSION}+ is installed from source in /opt/Qt6\n"
+            "2. Run the installation script: ./docker/install-qt-from-source.sh\n"
             "3. Source the Qt environment: source /opt/Qt6/setup-qt-env.sh\n"
             "4. Set CMAKE_PREFIX_PATH to include Qt: -DCMAKE_PREFIX_PATH=/opt/Qt6\n"
         )
     endif()
 endif()
 
-# Verify the version is actually 6.6.3 or higher
+# Verify the version meets the minimum requirement
 if(Qt6_VERSION VERSION_LESS ${QT6_MINIMUM_VERSION})
     message(FATAL_ERROR
         "Qt6 version ${Qt6_VERSION} was found, but version ${QT6_MINIMUM_VERSION} or higher is required.\n"
