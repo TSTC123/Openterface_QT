@@ -615,7 +615,23 @@ else()
     else()
         message(STATUS "Checked library: ${FFMPEG_LIB_CHECK} (exists: FALSE)")
     endif()
-    message(FATAL_ERROR "FFmpeg is required but not found. Please ensure FFmpeg libraries are installed at ${CMAKE_PREFIX_PATH}")
+    message(FATAL_ERROR
+        "FFmpeg is required but not found.\n"
+        "  FFMPEG_PREFIX      : ${FFMPEG_PREFIX}\n"
+        "  FFMPEG_INCLUDE_DIRS: ${FFMPEG_INCLUDE_DIRS}\n"
+        "  FFMPEG_LIB_DIR     : ${FFMPEG_LIB_DIR}\n"
+        "  FFMPEG_LIB_EXT     : ${FFMPEG_LIB_EXT}\n"
+        "  Header check       : ${FFMPEG_CHECK_FILE}\n"
+        "  Library check      : ${FFMPEG_LIB_CHECK}\n"
+        "  USE_SHARED_FFMPEG  : ${USE_SHARED_FFMPEG}\n"
+        "\n"
+        "To fix this, either:\n"
+        "  1) Install FFmpeg development packages:\n"
+        "       sudo apt install libavcodec-dev libavformat-dev libavutil-dev \\\n"
+        "                        libswresample-dev libswscale-dev libavdevice-dev libavfilter-dev\n"
+        "  2) Or point CMake to your FFmpeg installation:\n"
+        "       cmake .. -DFFMPEG_PREFIX=/path/to/ffmpeg -DUSE_SHARED_FFMPEG=ON\n"
+    )
 endif()
 
 # Include FFmpeg directories
