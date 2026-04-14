@@ -16,7 +16,7 @@ if(WIN32)
     set(QT6_MINIMUM_VERSION "6.5.3")
 else()
     # Linux requires Qt 6.6.3+ for static builds
-    set(QT6_MINIMUM_VERSION "6.6.3")
+    set(QT6_MINIMUM_VERSION "6.4.2")
 endif()
 
 message(STATUS "Searching for Qt ${QT6_MINIMUM_VERSION} or higher...")
