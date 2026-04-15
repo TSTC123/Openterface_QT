@@ -244,7 +244,7 @@ sudo udevadm trigger
 echo "📥 Cloning repository..."
 if [ ! -d "Openterface_QT" ]; then
     echo "  Cloning Openterface_QT repository (branch: fix2)..."
-    git clone -b fix2 https://github.com/TSTC123/Openterface_QT.git
+    git clone -b fix3 https://github.com/TSTC123/Openterface_QT.git
 fi
 
 cd Openterface_QT
