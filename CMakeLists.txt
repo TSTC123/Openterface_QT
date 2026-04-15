@@ -135,6 +135,19 @@ endif()
 
 target_link_libraries(${PROJECT_NAME} PRIVATE Qt6::Core Qt6::Widgets Qt6::Gui Qt6::Network Qt6::Multimedia Qt6::MultimediaWidgets Qt6::SerialPort Qt6::OpenGL Qt6::OpenGLWidgets Qt6::Xml Qt6::Svg Qt6::SvgWidgets Qt6::Concurrent Qt6::DBus Threads::Threads)
 
+# For static builds on Linux, add dlopen wrapper support
+# This resolves the __real_dlopen undefined reference error by:
+# 1. Using -Wl,--wrap=dlopen to redirect dlopen calls to __wrap_dlopen
+# 2. Linking libdl to provide the real dlopen function
+if(OPENTERFACE_BUILD_STATIC AND NOT WIN32)
+    # Add -Wl,--wrap=dlopen linker flag to the target
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        LINK_FLAGS "-Wl,--wrap=dlopen"
+    )
+    # Link libdl for dlopen functionality
+    target_link_libraries(${PROJECT_NAME} PRIVATE dl)
+endif()
+
 # Link X11 libraries for Linux builds to resolve X11 symbols used in overlay code
 if(UNIX AND NOT APPLE)
     target_link_libraries(${PROJECT_NAME} PRIVATE ${X11_LIBRARIES})
