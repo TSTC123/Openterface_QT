@@ -257,8 +257,31 @@ if(OPENTERFACE_BUILD_STATIC AND NOT WIN32)
         endif()
     endforeach()
     
-    # Link additional dependencies needed by XCB plugins
-    target_link_libraries(${PROJECT_NAME} PRIVATE xkbcommon xkbcommon-x11 Xau Xdmcp)
+    # Link additional dependencies needed by XCB plugins (all optional)
+    pkg_check_modules(XKBCOMMON_X11 xkbcommon-x11)
+    if(XKBCOMMON_X11_FOUND)
+        target_link_libraries(${PROJECT_NAME} PRIVATE ${XKBCOMMON_X11_LIBRARIES})
+        target_include_directories(${PROJECT_NAME} PRIVATE ${XKBCOMMON_X11_INCLUDE_DIRS})
+        message(STATUS "xkbcommon-x11 libs: ${XKBCOMMON_X11_LIBRARIES}")
+    else()
+        message(WARNING "xkbcommon-x11 not found - install libxkbcommon-x11-dev (Debian/Ubuntu) or libxkbcommon-x11-devel (Fedora)")
+    endif()
+
+    find_library(XAU_LIBRARY Xau)
+    if(XAU_LIBRARY)
+        target_link_libraries(${PROJECT_NAME} PRIVATE ${XAU_LIBRARY})
+        message(STATUS "Linking Xau: ${XAU_LIBRARY}")
+    else()
+        message(WARNING "Xau library not found - install libxau-dev (Debian/Ubuntu) or libXau-devel (Fedora)")
+    endif()
+
+    find_library(XDMCP_LIBRARY Xdmcp)
+    if(XDMCP_LIBRARY)
+        target_link_libraries(${PROJECT_NAME} PRIVATE ${XDMCP_LIBRARY})
+        message(STATUS "Linking Xdmcp: ${XDMCP_LIBRARY}")
+    else()
+        message(WARNING "Xdmcp library not found - install libxdmcp-dev (Debian/Ubuntu) or libXdmcp-devel (Fedora)")
+    endif()
 endif()
 
 # Add XCB cursor library for static linking (Linux only) - Legacy support
