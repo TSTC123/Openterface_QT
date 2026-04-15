@@ -229,6 +229,17 @@ sudo apt-get install -y --allow-unauthenticated \
     libswscale-dev \
     libavdevice-dev \
     libavfilter-dev \
+    libgstreamer1.0-dev \
+    libgstreamer-plugins-base1.0-dev \
+    libgstreamer-plugins-good1.0-dev \
+    libgstreamer-plugins-bad1.0-dev \
+    libglib2.0-dev \
+    liborc-0.4-dev \
+    libv4l-dev \
+    libgudev-1.0-dev \
+    libxrandr-dev \
+    libxv-dev \
+    libxi-dev \
     ffmpeg
 
 echo "👥 Setting up user permissions..."
