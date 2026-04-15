@@ -364,20 +364,22 @@ if(COMMAND qt_generate_deploy_app_script)
         set(ENABLE_QT_DEPLOY ON)
     endif()
     if(ENABLE_QT_DEPLOY)
-        # Try new syntax first (Qt 6.5+), fall back to old syntax
-        if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.21")
+        # Qt 6.5+ uses OUTPUT_SCRIPT; Qt 6.3/6.4 uses FILENAME_VARIABLE
+        if(Qt6Core_VERSION VERSION_GREATER_EQUAL "6.5")
             qt_generate_deploy_app_script(
                 TARGET openterfaceQT
-                OUTPUT_SCRIPT deploy_script    
+                OUTPUT_SCRIPT deploy_script
                 NO_UNSUPPORTED_PLATFORM_ERROR
             )
             install(SCRIPT ${deploy_script})
         else()
-            # Older CMake versions don't support OUTPUT_SCRIPT
+            # Qt < 6.5 uses FILENAME_VARIABLE instead of OUTPUT_SCRIPT
             qt_generate_deploy_app_script(
                 TARGET openterfaceQT
+                FILENAME_VARIABLE deploy_script
                 NO_UNSUPPORTED_PLATFORM_ERROR
             )
+            install(SCRIPT ${deploy_script})
         endif()
     else()
         message(STATUS "Qt deploy disabled (ENABLE_QT_DEPLOY=OFF); skipping deploy script generation")
