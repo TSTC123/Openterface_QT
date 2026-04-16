@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # =============================================================================
 # Openterface QT Linux Installation Script
 # =============================================================================
@@ -88,7 +88,7 @@
 # LICENSE: See LICENSE file in the project repository
 # =============================================================================
 
-set -e
+set -euo pipefail
 
 # Configuration - Version/Tag to build
 # By default, use the STABLE_APP_VERSION from version.h
@@ -200,60 +200,246 @@ else
     echo "✅ No existing system installation found"
 fi
 
-echo "🔧 Installing dependencies for Linux..."
-sudo apt-get update -y --allow-releaseinfo-change --allow-unauthenticated || true
+# Detect distribution and version for package name compatibility
+echo "🔍 Detecting Linux distribution..."
+. /etc/os-release 2>/dev/null || true
+DISTRO_ID="${ID:-}"
+DISTRO_VERSION_ID="${VERSION_ID:-}"
 
-echo "📦 Installing build dependencies..."
-sudo apt-get install -y --allow-unauthenticated \
-    build-essential \
-    cmake \
-    qt6-base-dev \
-    qt6-multimedia-dev \
-    qt6-serialport-dev \
-    qt6-svg-dev \
-    libusb-1.0-0-dev \
-    qt6-tools-dev \
-    libudev-dev \
-    pkg-config \
-    libx11-dev \
-    libxcb1-dev \
-    libxcb-cursor0 \
-    libxcb-cursor-dev \
-    libxcb-xfixes0-dev \
-    libxcb-shape0-dev \
-    libxcb-randr0-dev \
-    libxcb-image0-dev \
-    libxcb-keysyms1-dev \
-    libxcb-icccm4-dev \
-    libxcb-sync-dev \
-    libxcb-xkb-dev \
-    libxkbcommon-dev \
-    libxkbcommon-x11-dev \
-    libxrandr-dev \
-    libxrender-dev \
-    libexpat1-dev \
-    libfreetype6-dev \
-    libfontconfig1-dev \
-    libbz2-dev \
-    libavformat-dev \
-    libavcodec-dev \
-    libavutil-dev \
-    libswresample-dev \
-    libswscale-dev \
-    libavdevice-dev \
-    libavfilter-dev \
-    libgstreamer1.0-dev \
-    libgstreamer-plugins-base1.0-dev \
-    libgstreamer-plugins-good1.0-dev \
-    libgstreamer-plugins-bad1.0-dev \
-    libglib2.0-dev \
-    liborc-0.4-dev \
-    libv4l-dev \
-    libgudev-1.0-dev \
-    libxrandr-dev \
-    libxv-dev \
-    libxi-dev \
-    ffmpeg
+echo "  Detected distribution: $DISTRO_ID $DISTRO_VERSION_ID"
+
+# Set package names based on distribution and version
+case "$DISTRO_ID" in
+    "ubuntu")
+        if [[ "$DISTRO_VERSION_ID" == "24.04" ]]; then
+            # Ubuntu 24.04 - new package names
+            QT_SERIALPORT="qt6-serialport-dev"
+            QT_SVG="qt6-svg-dev"
+        else
+            # Ubuntu 22.04 and other versions - old package names
+            QT_SERIALPORT="libqt6serialport6-dev"
+            QT_SVG="libqt6svg6-dev"
+        fi
+        ;;
+    "debian")
+        # Debian 11/12/13 - all use libqt6<module><ver>-dev format
+        QT_SERIALPORT="libqt6serialport6-dev"
+        QT_SVG="libqt6svg6-dev"
+        ;;
+    "fedora")
+        # Fedora - use dnf/yum
+        QT_SERIALPORT="qt6-qtserialport-devel"
+        QT_SVG="qt6-qtsvg-devel"
+        ;;
+    "arch")
+        # Arch Linux - use pacman
+        QT_SERIALPORT="qt6-serialport"
+        QT_SVG="qt6-svg"
+        ;;
+    *)
+        # Default - try Ubuntu 24.04 style
+        QT_SERIALPORT="qt6-serialport-dev"
+        QT_SVG="qt6-svg-dev"
+        ;;
+esac
+
+# Install GStreamer base (same across all Ubuntu/Debian versions)
+GSTREAMER_BASE="libgstreamer-plugins-base1.0-dev"
+
+# Define libudev development package based on distribution
+case "$DISTRO_ID" in
+    "ubuntu"|"debian")
+        LIBUDEV_DEV="libudev-dev"
+        ;;
+    "fedora")
+        LIBUDEV_DEV="libudev-devel"
+        ;;
+    "arch")
+        LIBUDEV_DEV="libudev"
+        ;;
+    *)
+        LIBUDEV_DEV="libudev-dev"
+        ;;
+esac
+
+# Check if we're using apt-based system
+if [[ "$DISTRO_ID" == "ubuntu" || "$DISTRO_ID" == "debian" ]]; then
+    echo "🔧 Installing dependencies for Linux..."
+    sudo apt-get update -y --allow-releaseinfo-change || true
+    
+    echo "📦 Installing build dependencies..."
+    sudo apt-get install -y \
+        build-essential \
+        cmake \
+        qt6-base-dev \
+        qt6-multimedia-dev \
+        libusb-1.0-0-dev \
+        qt6-tools-dev \
+        libudev-dev \
+        pkg-config \
+        libx11-dev \
+        libxcb1-dev \
+        libxcb-cursor-dev \
+        libxcb-xfixes0-dev \
+        libxcb-shape0-dev \
+        libxcb-randr0-dev \
+        libxcb-image0-dev \
+        libxcb-keysyms1-dev \
+        libxcb-icccm4-dev \
+        libxcb-sync-dev \
+        libxcb-xkb-dev \
+        libxkbcommon-dev \
+        libxkbcommon-x11-dev \
+        libxrandr-dev \
+        libxrender-dev \
+        libexpat1-dev \
+        libfreetype6-dev \
+        libfontconfig1-dev \
+        libbz2-dev \
+        libudev-dev \
+        libavformat-dev \
+        libavcodec-dev \
+        libavutil-dev \
+        libswresample-dev \
+        libswscale-dev \
+        libavdevice-dev \
+        libavfilter-dev \
+        libgstreamer1.0-dev \
+        $GSTREAMER_BASE \
+        libgstreamer-plugins-good1.0-dev \
+        libgstreamer-plugins-bad1.0-dev \
+        libglib2.0-dev \
+        liborc-0.4-dev \
+        libv4l-dev \
+        libgudev-1.0-dev \
+        libxv-dev \
+        libxi-dev \
+        ffmpeg
+    
+    echo "📦 Installing Qt6 optional components..."
+    # Try to install Qt6 SerialPort and SVG modules
+    for pkg in "$QT_SERIALPORT" "$QT_SVG"; do
+        if apt-cache show "$pkg" &>/dev/null; then
+            echo "  Installing: $pkg"
+            sudo apt-get install -y "$pkg" 2>/dev/null || true
+        else
+            echo "  ⚠️  Package not found: $pkg (skipping)"
+        fi
+    done
+
+elif [[ "$DISTRO_ID" == "fedora" ]]; then
+    echo "🔧 Installing dependencies for Fedora..."
+    sudo dnf update -y || true
+    sudo dnf install -y \
+        gcc \
+        gcc-c++ \
+        make \
+        cmake \
+        qt6-base-devel \
+        qt6-multimedia-devel \
+        libusb-devel \
+        qt6-qtserialport-devel \
+        qt6-qtsvg-devel \
+        qt6-qttools-devel \
+        systemd-devel \
+        pkg-config \
+        libX11-devel \
+        libxcb-devel \
+        gstreamer1-devel \
+        gstreamer1-plugins-base-devel \
+        libv4l-devel \
+        glib2-devel \
+        ffmpeg-devel \
+        libXrandr-devel \
+        libXv-devel \
+        libXi-devel \
+        libudev-devel
+    
+elif [[ "$DISTRO_ID" == "arch" ]]; then
+    echo "🔧 Installing dependencies for Arch Linux..."
+    sudo pacman -Sy --noconfirm
+    sudo pacman -S --noconfirm \
+        base-devel \
+        cmake \
+        pkg-config \
+        qt6-base \
+        qt6-multimedia \
+        qt6-serialport \
+        qt6-svg \
+        qt6-tools \
+        libusb \
+        gst-plugins-base \
+        gstreamer \
+        libv4l \
+        glib2 \
+        ffmpeg \
+        xorg-xrandr \
+        xorg-xv \
+        xorg-xi
+else
+    echo "⚠️  Unknown distribution: $DISTRO_ID"
+    echo "  Using default apt-based installation..."
+    echo "🔧 Installing dependencies for Linux..."
+    sudo apt-get update -y --allow-releaseinfo-change || true
+    
+    echo "📦 Installing build dependencies..."
+    sudo apt-get install -y \
+        build-essential \
+        cmake \
+        qt6-base-dev \
+        qt6-multimedia-dev \
+        libusb-1.0-0-dev \
+        qt6-tools-dev \
+        libudev-dev \
+        pkg-config \
+        libx11-dev \
+        libxcb1-dev \
+        libxcb-cursor-dev \
+        libxcb-xfixes0-dev \
+        libxcb-shape0-dev \
+        libxcb-randr0-dev \
+        libxcb-image0-dev \
+        libxcb-keysyms1-dev \
+        libxcb-icccm4-dev \
+        libxcb-sync-dev \
+        libxcb-xkb-dev \
+        libxkbcommon-dev \
+        libxkbcommon-x11-dev \
+        libxrandr-dev \
+        libxrender-dev \
+        libexpat1-dev \
+        libfreetype6-dev \
+        libfontconfig1-dev \
+        libbz2-dev \
+        libavformat-dev \
+        libavcodec-dev \
+        libavutil-dev \
+        libswresample-dev \
+        libswscale-dev \
+        libavdevice-dev \
+        libavfilter-dev \
+        libgstreamer1.0-dev \
+        $GSTREAMER_BASE \
+        libgstreamer-plugins-good1.0-dev \
+        libgstreamer-plugins-bad1.0-dev \
+        libglib2.0-dev \
+        liborc-0.4-dev \
+        libv4l-dev \
+        libgudev-1.0-dev \
+        libxv-dev \
+        libxi-dev \
+        ffmpeg
+    
+    echo "📦 Installing Qt6 optional components..."
+    for pkg in "$QT_SERIALPORT" "$QT_SVG"; do
+        if apt-cache show "$pkg" &>/dev/null; then
+            echo "  Installing: $pkg"
+            sudo apt-get install -y "$pkg" 2>/dev/null || true
+        else
+            echo "  ⚠️  Package not found: $pkg (skipping)"
+        fi
+    done
+fi
 
 echo "👥 Setting up user permissions..."
 sudo usermod -a -G dialout,video $USER
