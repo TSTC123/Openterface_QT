@@ -216,6 +216,19 @@ sudo apt-get install -y --allow-unauthenticated \
     libudev-dev \
     pkg-config \
     libx11-dev \
+    libxcb1-dev \
+    libxcb-cursor0 \
+    libxcb-cursor-dev \
+    libxcb-xfixes0-dev \
+    libxcb-shape0-dev \
+    libxcb-randr0-dev \
+    libxcb-image0-dev \
+    libxcb-keysyms1-dev \
+    libxcb-icccm4-dev \
+    libxcb-sync-dev \
+    libxcb-xkb-dev \
+    libxkbcommon-dev \
+    libxkbcommon-x11-dev \
     libxrandr-dev \
     libxrender-dev \
     libexpat1-dev \
