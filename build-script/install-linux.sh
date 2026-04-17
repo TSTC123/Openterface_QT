@@ -374,7 +374,11 @@ elif [[ "$DISTRO_ID" == "fedora" ]]; then
         libXrandr-devel \
         libXv-devel \
         libXi-devel \
-        libudev-devel || true
+        libudev-devel \
+        expat-devel \
+        freetype-devel \
+        fontconfig-devel \
+        bzip2-devel || true
     
 elif [[ "$DISTRO_ID" == "arch" ]]; then
     echo "🔧 Installing dependencies for Arch Linux..."
