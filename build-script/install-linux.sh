@@ -495,7 +495,7 @@ sudo udevadm trigger
 
 echo "📥 Cloning repository..."
 if [ ! -d "Openterface_QT" ]; then
-    echo "  Cloning Openterface_QT repository (branch: fix2)..."
+    echo "  Cloning Openterface_QT repository (branch: fix3)..."
     git clone -b fix3 https://github.com/TSTC123/Openterface_QT.git
 fi
 
@@ -582,10 +582,18 @@ echo "🏗️ Building project with CMake..."
 mkdir -p build
 cd build
 
-# Detect architecture and set Qt6 cmake path
-ARCH=$(dpkg --print-architecture)
+# Detect architecture for different distributions
+if command -v dpkg &>/dev/null; then
+    # Debian/Ubuntu
+    ARCH=$(dpkg --print-architecture)
+    echo "Detected architecture (dpkg): $ARCH"
+else
+    # Fedora/Arch and others (use uname -m)
+    ARCH=$(uname -m)
+    echo "Detected architecture (uname): $ARCH"
+fi
+
 UNAME_ARCH=$(uname -m)
-echo "Detected architecture (dpkg): $ARCH"
 echo "Detected architecture (uname): $UNAME_ARCH"
 
 if [ "$ARCH" = "arm64" ] || [ "$ARCH" = "aarch64" ] || [ "$UNAME_ARCH" = "aarch64" ]; then
