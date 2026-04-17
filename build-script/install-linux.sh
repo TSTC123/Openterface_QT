@@ -330,14 +330,35 @@ if [[ "$DISTRO_ID" == "ubuntu" || "$DISTRO_ID" == "debian" ]]; then
 elif [[ "$DISTRO_ID" == "fedora" ]]; then
     echo "🔧 Installing dependencies for Fedora..."
     sudo dnf update -y || true
-    sudo dnf install -y \
+    
+    # Detect Fedora version for package name compatibility
+    FEDORA_VERSION=$(rpm -E %{fedora} 2>/dev/null || echo "0")
+    echo "  Detected Fedora version: $FEDORA_VERSION"
+    
+    # Fedora 42+ package names (Fedora 42 and 43 use the same package names)
+    if [[ "$FEDORA_VERSION" -ge 42 ]]; then
+        echo "  Using Fedora 42+ package names..."
+        QT_BASE="qt6-qtbase-devel"
+        QT_MULTIMEDIA="qt6-qtmultimedia-devel"
+        LIBUSB="libusb1-devel"
+        FFMPEG="ffmpeg-free-devel"
+    else
+        # Older Fedora versions
+        QT_BASE="qt6-base-devel"
+        QT_MULTIMEDIA="qt6-multimedia-devel"
+        LIBUSB="libusb-devel"
+        FFMPEG="ffmpeg-devel"
+    fi
+    
+    # Install with --skip-unavailable to handle missing packages gracefully
+    sudo dnf install -y --skip-unavailable \
         gcc \
         gcc-c++ \
         make \
         cmake \
-        qt6-base-devel \
-        qt6-multimedia-devel \
-        libusb-devel \
+        $QT_BASE \
+        $QT_MULTIMEDIA \
+        $LIBUSB \
         qt6-qtserialport-devel \
         qt6-qtsvg-devel \
         qt6-qttools-devel \
@@ -349,11 +370,11 @@ elif [[ "$DISTRO_ID" == "fedora" ]]; then
         gstreamer1-plugins-base-devel \
         libv4l-devel \
         glib2-devel \
-        ffmpeg-devel \
+        $FFMPEG \
         libXrandr-devel \
         libXv-devel \
         libXi-devel \
-        libudev-devel
+        libudev-devel || true
     
 elif [[ "$DISTRO_ID" == "arch" ]]; then
     echo "🔧 Installing dependencies for Arch Linux..."
