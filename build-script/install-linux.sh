@@ -463,8 +463,27 @@ else
 fi
 
 echo "👥 Setting up user permissions..."
-sudo usermod -a -G dialout,video $USER
-sudo usermod -a -G uucp $USER
+
+# Check and add user to dialout group (doesn't exist on some systems like Fedora WSL)
+if getent group dialout &>/dev/null; then
+    sudo usermod -a -G dialout $USER
+else
+    echo "  ⚠️  Group 'dialout' does not exist, skipping..."
+fi
+
+# Check and add user to video group
+if getent group video &>/dev/null; then
+    sudo usermod -a -G video $USER
+else
+    echo "  ⚠️  Group 'video' does not exist, skipping..."
+fi
+
+# Check and add user to uucp group (doesn't exist on some systems like Fedora WSL)
+if getent group uucp &>/dev/null; then
+    sudo usermod -a -G uucp $USER
+else
+    echo "  ⚠️  Group 'uucp' does not exist, skipping..."
+fi
 
 echo "🔐 Setting up device permissions..."
 echo 'SUBSYSTEM=="hidraw", ATTRS{idVendor}=="534d", ATTRS{idProduct}=="2109", TAG+="uaccess"' | sudo tee /etc/udev/rules.d/51-openterface.rules
