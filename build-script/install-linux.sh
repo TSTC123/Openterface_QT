@@ -366,6 +366,7 @@ elif [[ "$DISTRO_ID" == "fedora" ]]; then
         pkg-config \
         libX11-devel \
         libxcb-devel \
+        libxcb-cursor-devel \
         gstreamer1-devel \
         gstreamer1-plugins-base-devel \
         libv4l-devel \
