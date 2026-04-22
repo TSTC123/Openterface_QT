@@ -229,6 +229,10 @@ sudo apt-get install -y --allow-unauthenticated \
     libavfilter-dev \
     libswresample-dev \
     libswscale-dev \
+    libgudev-1.0-dev \
+    libv4l-dev \
+    libxi-dev \
+    libxv-dev \
     ffmpeg
 
 echo "👥 Setting up user permissions..."
