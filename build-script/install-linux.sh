@@ -259,6 +259,14 @@ echo 'SUBSYSTEM=="usb", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", TAG+=
 sudo udevadm control --reload-rules
 sudo udevadm trigger
 
+echo "📥 Cloning repository..."
+if [ ! -d "Openterface_QT" ]; then
+    echo "  Cloning Openterface_QT repository..."
+    git clone https://github.com/TechxArtisanStudio/Openterface_QT.git
+fi
+
+cd Openterface_QT
+
 # Check if Qt >= 6.6.3 is available
 echo "🔍 Checking Qt version..."
 QT_FOUND=false
@@ -300,14 +308,6 @@ if [ "$QT_FOUND" = false ]; then
 else
     echo "✅ Qt requirement satisfied, skipping build"
 fi
-
-echo "📥 Cloning repository..."
-if [ ! -d "Openterface_QT" ]; then
-    echo "  Cloning Openterface_QT repository..."
-    git clone https://github.com/TechxArtisanStudio/Openterface_QT.git
-fi
-
-cd Openterface_QT
 
 # Determine which version to build
 TARGET_VERSION=""
