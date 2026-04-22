@@ -137,33 +137,3 @@
         esac
 
         log "Done."
-exit 0
-
-chmod +x "${QT_INSTALL_PREFIX}/setup-qt-env.sh"
-
-# Create global environment setup
-cat > "/etc/profile.d/qt6.6.3.sh" << EOF
-# Qt 6.6.3 Environment Variables
-export QTDIR="/opt/qt6.6.3"
-export QT_INSTALL_PREFIX="/opt/Qt6"
-export PATH="/opt/qt6.6.3/bin:\${PATH}"
-export LD_LIBRARY_PATH="/opt/qt6.6.3/lib:\${LD_LIBRARY_PATH}"
-export PKG_CONFIG_PATH="/opt/qt6.6.3/lib/pkgconfig:\${PKG_CONFIG_PATH}"
-export QT_PLUGIN_PATH="/opt/qt6.6.3/plugins"
-export QML_IMPORT_PATH="/opt/qt6.6.3/qml"
-export QML2_IMPORT_PATH="/opt/qt6.6.3/qml"
-EOF
-
-# Cleanup build directories
-echo "Cleaning up build directories..."
-rm -rf "${BUILD_DIR}" "${SOURCE_DIR}"
-
-echo ""
-echo "============================================"
-echo "Qt ${QT_VERSION} installation completed!"
-echo "============================================"
-echo "Installation directory: ${QT_INSTALL_PREFIX}"
-echo "To use Qt, source the environment:"
-echo "  source ${QT_INSTALL_PREFIX}/setup-qt-env.sh"
-echo "Or restart your shell to use global environment"
-echo ""
