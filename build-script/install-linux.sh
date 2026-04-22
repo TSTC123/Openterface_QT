@@ -233,6 +233,10 @@ sudo apt-get install -y --allow-unauthenticated \
     libv4l-dev \
     libxi-dev \
     libxv-dev \
+    libgstreamer1.0-dev \
+    libgstreamer-plugins-base1.0-dev \
+    libglib2.0-dev \
+    libxcb-cursor-dev \
     ffmpeg
 
 echo "👥 Setting up user permissions..."
