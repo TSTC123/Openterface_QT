@@ -225,6 +225,8 @@ sudo apt-get install -y --allow-unauthenticated \
     libavformat-dev \
     libavcodec-dev \
     libavutil-dev \
+    libavdevice-dev \
+    libavfilter-dev \
     libswresample-dev \
     libswscale-dev \
     ffmpeg
@@ -368,8 +370,8 @@ if [ -n "$LIBAVFORMAT" ] && [ -n "$LIBAVCODEC" ] && [ -n "$LIBAVUTIL" ] && [ -n 
     cmake .. \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_PREFIX_PATH="$QT_CMAKE_PATH" \
-        -DFFMPEG_LIBRARIES="$FFMPEG_LIBRARIES" \
-        -DCMAKE_SYSTEM_PROCESSOR="$UNAME_ARCH"
+        -DCMAKE_SYSTEM_PROCESSOR="$UNAME_ARCH" \
+        -DUSE_SHARED_FFMPEG=ON
 else
     echo "⚠️  Some FFmpeg static libraries not found, using default paths"
     echo "Found libraries:"
@@ -378,11 +380,12 @@ else
     [ -n "$LIBAVUTIL" ] && echo "  - libavutil: $LIBAVUTIL" || echo "  - libavutil: NOT FOUND"
     [ -n "$LIBSWRESAMPLE" ] && echo "  - libswresample: $LIBSWRESAMPLE" || echo "  - libswresample: NOT FOUND"
     [ -n "$LIBSWSCALE" ] && echo "  - libswscale: $LIBSWSCALE" || echo "  - libswscale: NOT FOUND"
-    
+
     cmake .. \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_PREFIX_PATH="$QT_CMAKE_PATH" \
-        -DCMAKE_SYSTEM_PROCESSOR="$UNAME_ARCH"
+        -DCMAKE_SYSTEM_PROCESSOR="$UNAME_ARCH" \
+        -DUSE_SHARED_FFMPEG=ON
 fi
 
 make clean
