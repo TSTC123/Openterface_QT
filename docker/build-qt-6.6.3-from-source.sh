@@ -9,7 +9,7 @@
         # Configuration
         QT_VERSION="6.6.3"
         QT_MAJOR_VERSION="6.6"
-        QT_INSTALL_PREFIX="/opt/qt6.6.3"
+        QT_INSTALL_PREFIX="/opt/Qt6"
         BUILD_DIR="/tmp/qt-build"
         SOURCE_DIR="/tmp/qt-source"
         PARALLEL_JOBS=$(nproc)
@@ -145,7 +145,7 @@ chmod +x "${QT_INSTALL_PREFIX}/setup-qt-env.sh"
 cat > "/etc/profile.d/qt6.6.3.sh" << EOF
 # Qt 6.6.3 Environment Variables
 export QTDIR="/opt/qt6.6.3"
-export QT_INSTALL_PREFIX="/opt/qt6.6.3"
+export QT_INSTALL_PREFIX="/opt/Qt6"
 export PATH="/opt/qt6.6.3/bin:\${PATH}"
 export LD_LIBRARY_PATH="/opt/qt6.6.3/lib:\${LD_LIBRARY_PATH}"
 export PKG_CONFIG_PATH="/opt/qt6.6.3/lib/pkgconfig:\${PKG_CONFIG_PATH}"

@@ -9,7 +9,7 @@ IFS=$'\n\t'
 # Configuration
 QT_VERSION="6.6.3"
 QT_MAJOR_VERSION="6.6"
-QT_INSTALL_PREFIX="/opt/qt6.6.3"
+QT_INSTALL_PREFIX="/opt/Qt6"
 BUILD_DIR="/tmp/qt-build"
 SOURCE_DIR="/tmp/qt-source"
 PARALLEL_JOBS=$(nproc)

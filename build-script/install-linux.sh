@@ -237,6 +237,14 @@ sudo apt-get install -y --allow-unauthenticated \
     libgstreamer-plugins-base1.0-dev \
     libglib2.0-dev \
     libxcb-cursor-dev \
+    libssl-dev \
+    libxkbcommon-dev \
+    libxkbcommon-x11-dev \
+    libwayland-dev \
+    libegl1-mesa-dev \
+    libgl1-mesa-dev \
+    libpulse-dev \
+    libasound2-dev \
     ffmpeg
 
 echo "👥 Setting up user permissions..."
@@ -250,6 +258,48 @@ echo 'SUBSYSTEM=="ttyUSB", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", TA
 echo 'SUBSYSTEM=="usb", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", TAG+="uaccess"' | sudo tee -a /etc/udev/rules.d/51-openterface.rules
 sudo udevadm control --reload-rules
 sudo udevadm trigger
+
+# Check if Qt >= 6.6.3 is available
+echo "🔍 Checking Qt version..."
+QT_FOUND=false
+MIN_VER="6.6.3"
+
+# Check system qmake6
+if command -v qmake6 &> /dev/null; then
+    QT_SYSVER=$(qmake6 --version 2>/dev/null | grep -oP '\d+\.\d+\.\d+' | head -1)
+    if [ -n "$QT_SYSVER" ]; then
+        if [ "$(printf '%s\n' "$MIN_VER" "$QT_SYSVER" | sort -V | head -n1)" = "$MIN_VER" ]; then
+            QT_FOUND=true
+            echo "✅ Detected system Qt $QT_SYSVER, meets minimum requirement ($MIN_VER)"
+        else
+            echo "⚠️  Detected system Qt $QT_SYSVER, but below minimum requirement ($MIN_VER)"
+        fi
+    fi
+fi
+
+# Check /opt/Qt6 if system Qt was insufficient
+if [ "$QT_FOUND" = false ] && [ -x "/opt/Qt6/bin/qmake6" ]; then
+    QT_OPT_VER=$(/opt/Qt6/bin/qmake6 --version 2>/dev/null | grep -oP '\d+\.\d+\.\d+' | head -1)
+    if [ -n "$QT_OPT_VER" ]; then
+        if [ "$(printf '%s\n' "$MIN_VER" "$QT_OPT_VER" | sort -V | head -n1)" = "$MIN_VER" ]; then
+            QT_FOUND=true
+            echo "✅ Detected /opt/Qt6 Qt $QT_OPT_VER, meets minimum requirement ($MIN_VER)"
+        else
+            echo "⚠️  Detected /opt/Qt6 Qt $QT_OPT_VER, but below minimum requirement ($MIN_VER)"
+        fi
+    fi
+fi
+
+if [ "$QT_FOUND" = false ]; then
+    echo "❌ No Qt $MIN_VER or higher detected. Building Qt 6.6.3 from source..."
+    cp docker/build-qt-6.6.3-from-source.sh /tmp/
+    chmod +x /tmp/build-qt-6.6.3-from-source.sh
+    /tmp/build-qt-6.6.3-from-source.sh
+    rm -f /tmp/build-qt-6.6.3-from-source.sh
+    echo "✅ Qt 6.6.3 installed to /opt/Qt6"
+else
+    echo "✅ Qt requirement satisfied, skipping build"
+fi
 
 echo "📥 Cloning repository..."
 if [ ! -d "Openterface_QT" ]; then
@@ -329,11 +379,20 @@ else
 fi
 
 echo "🌐 Generating language files..."
-if [ -x "/usr/lib/qt6/bin/lrelease" ]; then
-    /usr/lib/qt6/bin/lrelease openterfaceQT.pro
-    echo "✅ Language files generated successfully"
+LRELEASE=""
+if [ -x "/opt/Qt6/bin/lrelease" ]; then
+    LRELEASE="/opt/Qt6/bin/lrelease"
+elif command -v lrelease6 &> /dev/null; then
+    LRELEASE=$(which lrelease6)
+elif command -v lrelease &> /dev/null; then
+    LRELEASE=$(which lrelease)
+fi
+
+if [ -n "$LRELEASE" ]; then
+    "$LRELEASE" openterfaceQT.pro
+    echo "✅ Language files generated successfully (using $LRELEASE)"
 else
-    echo "⚠️  lrelease not found at /usr/lib/qt6/bin/lrelease, skipping..."
+    echo "⚠️  lrelease not found, skipping..."
 fi
 
 echo "🏗️ Building project with CMake..."
@@ -346,12 +405,15 @@ UNAME_ARCH=$(uname -m)
 echo "Detected architecture (dpkg): $ARCH"
 echo "Detected architecture (uname): $UNAME_ARCH"
 
-if [ "$ARCH" = "arm64" ] || [ "$ARCH" = "aarch64" ] || [ "$UNAME_ARCH" = "aarch64" ]; then
+if [ -d "/opt/Qt6/lib/cmake/Qt6" ]; then
+    QT_CMAKE_PATH="/opt/Qt6/lib/cmake/Qt6"
+    echo "Using custom Qt 6 from /opt/Qt6"
+elif [ "$ARCH" = "arm64" ] || [ "$ARCH" = "aarch64" ] || [ "$UNAME_ARCH" = "aarch64" ]; then
     QT_CMAKE_PATH="/usr/lib/aarch64-linux-gnu/cmake/Qt6"
-    echo "Building for ARM64/aarch64 architecture"
+    echo "Building for ARM64/aarch64 architecture (system Qt)"
 else
     QT_CMAKE_PATH="/usr/lib/x86_64-linux-gnu/cmake/Qt6"
-    echo "Building for x86_64 architecture"
+    echo "Building for x86_64 architecture (system Qt)"
 fi
 
 echo "Using Qt6 cmake from: $QT_CMAKE_PATH"
@@ -419,7 +481,9 @@ echo "🔧 Configuring Qt environment for system installation..."
 
 # Find Qt6 plugin directory
 QT_PLUGIN_PATH=""
-if [ -d "/usr/lib/x86_64-linux-gnu/qt6/plugins" ]; then
+if [ -d "/opt/Qt6/plugins" ]; then
+    QT_PLUGIN_PATH="/opt/Qt6/plugins"
+elif [ -d "/usr/lib/x86_64-linux-gnu/qt6/plugins" ]; then
     QT_PLUGIN_PATH="/usr/lib/x86_64-linux-gnu/qt6/plugins"
 elif [ -d "/usr/lib/aarch64-linux-gnu/qt6/plugins" ]; then
     QT_PLUGIN_PATH="/usr/lib/aarch64-linux-gnu/qt6/plugins"
