@@ -94,30 +94,30 @@
             log "Creating setup script"
             mkdir -p "${QT_INSTALL_PREFIX}"
             cat > "${QT_INSTALL_PREFIX}/setup-qt-env.sh" <<'EOF'
-        #!/bin/bash
-        export QTDIR="${QT_INSTALL_PREFIX}"
-        export QT_INSTALL_PREFIX="${QT_INSTALL_PREFIX}"
-        export PATH="${QT_INSTALL_PREFIX}/bin:${PATH}"
-        export LD_LIBRARY_PATH="${QT_INSTALL_PREFIX}/lib:${LD_LIBRARY_PATH}"
-        export PKG_CONFIG_PATH="${QT_INSTALL_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
-        export QT_PLUGIN_PATH="${QT_INSTALL_PREFIX}/plugins"
-        export QML_IMPORT_PATH="${QT_INSTALL_PREFIX}/qml"
-        export QML2_IMPORT_PATH="${QT_INSTALL_PREFIX}/qml"
-        EOF
+#!/bin/bash
+export QTDIR="${QT_INSTALL_PREFIX}"
+export QT_INSTALL_PREFIX="${QT_INSTALL_PREFIX}"
+export PATH="${QT_INSTALL_PREFIX}/bin:${PATH}"
+export LD_LIBRARY_PATH="${QT_INSTALL_PREFIX}/lib:${LD_LIBRARY_PATH}"
+export PKG_CONFIG_PATH="${QT_INSTALL_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
+export QT_PLUGIN_PATH="${QT_INSTALL_PREFIX}/plugins"
+export QML_IMPORT_PATH="${QT_INSTALL_PREFIX}/qml"
+export QML2_IMPORT_PATH="${QT_INSTALL_PREFIX}/qml"
+EOF
             chmod +x "${QT_INSTALL_PREFIX}/setup-qt-env.sh"
 
             log "Creating global profile /etc/profile.d/qt6.6.3.sh"
             cat > "/etc/profile.d/qt6.6.3.sh" <<'EOF'
-        # Qt 6.6.3 Environment Variables
-        export QTDIR="${QT_INSTALL_PREFIX}"
-        export QT_INSTALL_PREFIX="${QT_INSTALL_PREFIX}"
-        export PATH="${QT_INSTALL_PREFIX}/bin:${PATH}"
-        export LD_LIBRARY_PATH="${QT_INSTALL_PREFIX}/lib:${LD_LIBRARY_PATH}"
-        export PKG_CONFIG_PATH="${QT_INSTALL_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
-        export QT_PLUGIN_PATH="${QT_INSTALL_PREFIX}/plugins"
-        export QML_IMPORT_PATH="${QT_INSTALL_PREFIX}/qml"
-        export QML2_IMPORT_PATH="${QT_INSTALL_PREFIX}/qml"
-        EOF
+# Qt 6.6.3 Environment Variables
+export QTDIR="${QT_INSTALL_PREFIX}"
+export QT_INSTALL_PREFIX="${QT_INSTALL_PREFIX}"
+export PATH="${QT_INSTALL_PREFIX}/bin:${PATH}"
+export LD_LIBRARY_PATH="${QT_INSTALL_PREFIX}/lib:${LD_LIBRARY_PATH}"
+export PKG_CONFIG_PATH="${QT_INSTALL_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
+export QT_PLUGIN_PATH="${QT_INSTALL_PREFIX}/plugins"
+export QML_IMPORT_PATH="${QT_INSTALL_PREFIX}/qml"
+export QML2_IMPORT_PATH="${QT_INSTALL_PREFIX}/qml"
+EOF
 
             log "Cleaning up build directory (keeping source archive)"
             rm -rf "${BUILD_DIR}"
