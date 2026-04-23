@@ -142,15 +142,43 @@ void TargetControlPage::setupUI()
     hardwareLayout->addLayout(gridLayout);
     hardwareLayout->addStretch();
 
+#ifdef Q_CC_GNU
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+#ifdef Q_CC_MSVC
+#pragma warning(push)
+#pragma warning(disable: 4996)
+#endif
     connect(USBCustomStringDescriptorCheckBox, &QCheckBox::stateChanged, this, &TargetControlPage::onCheckBoxStateChanged);
     addCheckBoxLineEditPair(VIDCheckBox, VIDDescriptorLineEdit);
     addCheckBoxLineEditPair(PIDCheckBox, PIDDescriptorLineEdit);
     addCheckBoxLineEditPair(USBSerialNumberCheckBox, serialNumberLineEdit);
+#ifdef Q_CC_GNU
+#pragma GCC diagnostic pop
+#endif
+#ifdef Q_CC_MSVC
+#pragma warning(pop)
+#endif
 }
 
 void TargetControlPage::addCheckBoxLineEditPair(QCheckBox *checkBox, QLineEdit *lineEdit){
     USBCheckBoxEditMap.insert(checkBox,lineEdit);
+#ifdef Q_CC_GNU
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+#ifdef Q_CC_MSVC
+#pragma warning(push)
+#pragma warning(disable: 4996)
+#endif
     connect(checkBox, &QCheckBox::stateChanged, this, &TargetControlPage::onCheckBoxStateChanged);
+#ifdef Q_CC_GNU
+#pragma GCC diagnostic pop
+#endif
+#ifdef Q_CC_MSVC
+#pragma warning(pop)
+#endif
 }
 
 void TargetControlPage::onCheckBoxStateChanged(int state) {

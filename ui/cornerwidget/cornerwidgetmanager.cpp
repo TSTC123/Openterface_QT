@@ -166,7 +166,21 @@ void CornerWidgetManager::setupConnections()
     connect(fullScreenButton, &QPushButton::clicked, this, &CornerWidgetManager::fullScreenClicked);
     connect(pasteButton, &QPushButton::clicked, this, &CornerWidgetManager::pasteClicked);
     connect(screensaverButton, &QPushButton::toggled, this, &CornerWidgetManager::screensaverClicked);
+#ifdef Q_CC_GNU
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+#ifdef Q_CC_MSVC
+#pragma warning(push)
+#pragma warning(disable: 4996)
+#endif
     connect(toggleSwitch, &ToggleSwitch::stateChanged, this, &CornerWidgetManager::toggleSwitchChanged);
+#ifdef Q_CC_GNU
+#pragma GCC diagnostic pop
+#endif
+#ifdef Q_CC_MSVC
+#pragma warning(pop)
+#endif
     connect(keyboardLayoutComboBox, &QComboBox::currentTextChanged, this, &CornerWidgetManager::keyboardLayoutChanged);
     
     // Connect recording button click to toggle recording state and emit signal

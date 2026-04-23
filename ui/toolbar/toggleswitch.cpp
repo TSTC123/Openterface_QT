@@ -13,7 +13,21 @@ ToggleSwitch::ToggleSwitch(QWidget *parent, QColor barColor, QColor checkedColor
       m_fontSize(fontSize)
 {
     setContentsMargins(7, 0, 7, 0);
+#ifdef Q_CC_GNU
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+#ifdef Q_CC_MSVC
+#pragma warning(push)
+#pragma warning(disable: 4996)
+#endif
     connect(this, &QCheckBox::stateChanged, this, &ToggleSwitch::handleStateChange);
+#ifdef Q_CC_GNU
+#pragma GCC diagnostic pop
+#endif
+#ifdef Q_CC_MSVC
+#pragma warning(pop)
+#endif
 }
 
 QSize ToggleSwitch::sizeHint() const
