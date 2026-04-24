@@ -37,7 +37,12 @@ if(NOT DEFINED FFMPEG_PREFIX)
         if(WIN32)
             set(FFMPEG_PREFIX "C:/ffmpeg-static" CACHE PATH "FFmpeg installation directory")
         else()
-            set(FFMPEG_PREFIX "/opt/ffmpeg" CACHE PATH "FFmpeg installation directory")
+            # Linux: use /opt/ffmpeg if it exists (custom build), otherwise use /usr (system/apt packages)
+            if(EXISTS "/opt/ffmpeg")
+                set(FFMPEG_PREFIX "/opt/ffmpeg" CACHE PATH "FFmpeg installation directory")
+            else()
+                set(FFMPEG_PREFIX "/usr" CACHE PATH "FFmpeg installation directory")
+            endif()
         endif()
         message(STATUS "Using default FFMPEG_PREFIX: ${FFMPEG_PREFIX}")
     endif()
@@ -129,6 +134,96 @@ if(USE_SHARED_FFMPEG AND NOT WIN32)
             else()
                 message(WARNING "FFmpeg pkg-config found but libraries missing in ${FFMPEG_LIB_DIR}")
             endif()
+        endif()
+    endif()
+endif()
+
+# Fallback: auto-detect system FFmpeg when prefix directory doesn't contain libraries
+# This handles apt/dnf/pacman installed FFmpeg where libs live in /usr/lib/...
+if(NOT FFMPEG_FOUND AND NOT WIN32)
+    set(_FFMPEG_PREFIX_HAS_LIBS FALSE)
+    if(EXISTS "${FFMPEG_PREFIX}/lib/libavformat.a" OR EXISTS "${FFMPEG_PREFIX}/lib/libavformat.so")
+        set(_FFMPEG_PREFIX_HAS_LIBS TRUE)
+    endif()
+    # Also check multi-arch paths
+    if(NOT _FFMPEG_PREFIX_HAS_LIBS AND EXISTS "${FFMPEG_PREFIX}/lib/x86_64-linux-gnu/libavformat.so")
+        set(_FFMPEG_PREFIX_HAS_LIBS TRUE)
+    endif()
+    if(NOT _FFMPEG_PREFIX_HAS_LIBS AND EXISTS "${FFMPEG_PREFIX}/lib/aarch64-linux-gnu/libavformat.so")
+        set(_FFMPEG_PREFIX_HAS_LIBS TRUE)
+    endif()
+
+    if(NOT _FFMPEG_PREFIX_HAS_LIBS)
+        message(STATUS "FFmpeg libraries not found in ${FFMPEG_PREFIX}, trying system-installed FFmpeg...")
+
+        # Step 1: Try pkg-config with all required FFmpeg components
+        find_package(PkgConfig QUIET)
+        if(PkgConfig_FOUND)
+            pkg_check_modules(FFMPEG_PKGCONF IMPORTED_TARGET
+                libavdevice libavfilter libavformat libavcodec libswresample libswscale libavutil
+            )
+            if(FFMPEG_PKGCONF_FOUND)
+                message(STATUS "Found system FFmpeg via pkg-config")
+                set(FFMPEG_INCLUDE_DIRS ${FFMPEG_PKGCONF_INCLUDE_DIRS})
+                set(FFMPEG_FOUND TRUE)
+                set(FFMPEG_LIB_EXT ".so")
+                set(USE_SHARED_FFMPEG ON)
+                set(FFMPEG_LIB_DIR "")
+                # Build full library list from pkg-config library dirs
+                foreach(_libname avdevice avfilter avformat avcodec swresample swscale avutil)
+                    foreach(_dir ${FFMPEG_PKGCONF_LIBRARY_DIRS})
+                        if(EXISTS "${_dir}/lib${_libname}.so")
+                            list(APPEND FFMPEG_LIBRARIES "${_dir}/lib${_libname}.so")
+                            break()
+                        endif()
+                    endforeach()
+                endforeach()
+                if(FFMPEG_LIBRARIES)
+                    message(STATUS "FFmpeg library dir: ${FFMPEG_PKGCONF_LIBRARY_DIRS}")
+                    message(STATUS "FFmpeg libraries: ${FFMPEG_LIBRARIES}")
+                endif()
+            endif()
+        endif()
+
+        # Step 2: If pkg-config failed, try find_library in system paths
+        if(NOT FFMPEG_FOUND)
+            message(STATUS "pkg-config failed, trying find_library for system FFmpeg...")
+            set(_SYS_FF_LIBS "")
+            set(_SYS_FF_MISSING FALSE)
+            foreach(_libname avdevice avfilter avformat avcodec swresample swscale avutil)
+                find_library(_FOUND_FF_${_libname} ${_libname}
+                    PATHS /usr/lib/x86_64-linux-gnu /usr/lib/aarch64-linux-gnu /usr/lib /usr/lib64
+                )
+                if(_FOUND_FF_${_libname})
+                    list(APPEND _SYS_FF_LIBS "${_FOUND_FF_${_libname}}")
+                    message(STATUS "Found ${_libname}: ${_FOUND_FF_${_libname}}")
+                else()
+                    message(STATUS "Not found: ${_libname}")
+                    set(_SYS_FF_MISSING TRUE)
+                endif()
+            endforeach()
+
+            # Find system FFmpeg headers
+            find_path(_SYS_FF_INCLUDE_DIR
+                NAMES libavformat/avformat.h
+                PATHS /usr/include /usr/local/include
+            )
+
+            if(NOT _SYS_FF_MISSING AND _SYS_FF_INCLUDE_DIR)
+                message(STATUS "Found system FFmpeg via find_library")
+                set(FFMPEG_FOUND TRUE)
+                set(FFMPEG_LIB_EXT ".so")
+                set(USE_SHARED_FFMPEG ON)
+                set(FFMPEG_LIBRARIES ${_SYS_FF_LIBS})
+                set(FFMPEG_INCLUDE_DIRS ${_SYS_FF_INCLUDE_DIR})
+                # Set FFMPEG_LIB_DIR to the directory of the first library
+                list(GET _SYS_FF_LIBS 0 _FIRST_LIB)
+                get_filename_component(FFMPEG_LIB_DIR "${_FIRST_LIB}" DIRECTORY)
+            endif()
+        endif()
+
+        if(NOT FFMPEG_FOUND)
+            message(WARNING "System FFmpeg not found. Install via: sudo apt install libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libswresample-dev libavfilter-dev libavdevice-dev")
         endif()
     endif()
 endif()
@@ -338,7 +433,19 @@ endif()
 message(STATUS "Final FFmpeg library extension: ${FFMPEG_LIB_EXT}")
 
 # Build the list of FFmpeg libraries depending on detected extension
-if(FFMPEG_LIB_EXT STREQUAL ".dll")
+# Skip if libraries were already resolved with absolute paths (e.g., by find_library fallback)
+set(_FFMPEG_LIBS_ALREADY_SET FALSE)
+if(FFMPEG_FOUND AND FFMPEG_LIBRARIES)
+    set(_FFMPEG_LIBS_ALREADY_SET TRUE)
+    # Verify the paths are absolute
+    list(GET FFMPEG_LIBRARIES 0 _FFMPEG_FIRST_LIB)
+    if(NOT IS_ABSOLUTE "${_FFMPEG_FIRST_LIB}")
+        set(_FFMPEG_LIBS_ALREADY_SET FALSE)
+    endif()
+endif()
+
+if(NOT _FFMPEG_LIBS_ALREADY_SET)
+    if(FFMPEG_LIB_EXT STREQUAL ".dll")
     # If we only found real DLLs, glob the actual DLL filenames (e.g. avdevice-*.dll)
     file(GLOB _avdevice_dlls "${FFMPEG_LIB_DIR}/avdevice-*.dll" "${FFMPEG_LIB_DIR}/libavdevice-*.dll")
     file(GLOB _avfilter_dlls "${FFMPEG_LIB_DIR}/avfilter-*.dll" "${FFMPEG_LIB_DIR}/libavfilter-*.dll")
@@ -365,17 +472,20 @@ if(FFMPEG_LIB_EXT STREQUAL ".dll")
         "${_swscale}"
         "${_avutil}"
     )
+    else()
+        # Default behavior covers static (.a), import (.dll.a) and .so/.lib
+        set(FFMPEG_LIBRARIES
+            "${FFMPEG_LIB_DIR}/libavdevice${FFMPEG_LIB_EXT}"
+            "${FFMPEG_LIB_DIR}/libavfilter${FFMPEG_LIB_EXT}"
+            "${FFMPEG_LIB_DIR}/libavformat${FFMPEG_LIB_EXT}"
+            "${FFMPEG_LIB_DIR}/libavcodec${FFMPEG_LIB_EXT}"
+            "${FFMPEG_LIB_DIR}/libswresample${FFMPEG_LIB_EXT}"
+            "${FFMPEG_LIB_DIR}/libswscale${FFMPEG_LIB_EXT}"
+            "${FFMPEG_LIB_DIR}/libavutil${FFMPEG_LIB_EXT}"
+        )
+    endif()
 else()
-    # Default behavior covers static (.a), import (.dll.a) and .so/.lib
-    set(FFMPEG_LIBRARIES 
-        "${FFMPEG_LIB_DIR}/libavdevice${FFMPEG_LIB_EXT}"
-        "${FFMPEG_LIB_DIR}/libavfilter${FFMPEG_LIB_EXT}"
-        "${FFMPEG_LIB_DIR}/libavformat${FFMPEG_LIB_EXT}"
-        "${FFMPEG_LIB_DIR}/libavcodec${FFMPEG_LIB_EXT}"
-        "${FFMPEG_LIB_DIR}/libswresample${FFMPEG_LIB_EXT}"
-        "${FFMPEG_LIB_DIR}/libswscale${FFMPEG_LIB_EXT}"
-        "${FFMPEG_LIB_DIR}/libavutil${FFMPEG_LIB_EXT}"
-    )
+    message(STATUS "FFmpeg library paths already set with absolute paths: ${FFMPEG_LIBRARIES}")
 endif()
 
 message(STATUS "Using FFmpeg library paths: ${FFMPEG_LIBRARIES}")
