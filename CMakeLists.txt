@@ -354,9 +354,13 @@ endif()
 # =============================================================================
 if(UNIX AND NOT APPLE)
     # Set RPATH so the installed binary finds the Qt libraries it was built against
-    # Order: /opt/Qt6/lib (custom Qt 6.6.3) → common system Qt paths
-    set(CMAKE_INSTALL_RPATH "/opt/Qt6/lib;/usr/lib/x86_64-linux-gnu;/usr/lib/aarch64-linux-gnu;/usr/lib")
+    # Build phase: use Qt from /opt/Qt6
     set(CMAKE_BUILD_RPATH "/opt/Qt6/lib")
+    set(CMAKE_SKIP_BUILD_RPATH FALSE)
+
+    # Install phase: explicitly set rpath, must include /opt/Qt6/lib first
+    set(CMAKE_INSTALL_RPATH "/opt/Qt6/lib")
+    set(CMAKE_SKIP_INSTALL_RPATH FALSE)
     set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
     # Install the main binary
