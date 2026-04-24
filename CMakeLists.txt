@@ -353,6 +353,12 @@ endif()
 # Installation Targets (Linux only)
 # =============================================================================
 if(UNIX AND NOT APPLE)
+    # Set RPATH so the installed binary finds the Qt libraries it was built against
+    # Order: /opt/Qt6/lib (custom Qt 6.6.3) → common system Qt paths
+    set(CMAKE_INSTALL_RPATH "/opt/Qt6/lib;/usr/lib/x86_64-linux-gnu;/usr/lib/aarch64-linux-gnu;/usr/lib")
+    set(CMAKE_BUILD_RPATH "/opt/Qt6/lib")
+    set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
     # Install the main binary
     install(TARGETS openterfaceQT
         BUNDLE DESTINATION .
