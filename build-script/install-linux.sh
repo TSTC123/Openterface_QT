@@ -299,12 +299,9 @@ if [ "$QT_FOUND" = false ] && [ -x "/opt/Qt6/bin/qmake6" ]; then
 fi
 
 if [ "$QT_FOUND" = false ]; then
-    echo "❌ No Qt $MIN_VER or higher detected. Building Qt 6.6.3 from source..."
-    cp docker/build-qt-6.6.3-from-source.sh /tmp/
-    chmod +x /tmp/build-qt-6.6.3-from-source.sh
-    /tmp/build-qt-6.6.3-from-source.sh
-    rm -f /tmp/build-qt-6.6.3-from-source.sh
-    echo "✅ Qt 6.6.3 installed to /opt/Qt6"
+    echo "⚠️  No Qt $MIN_VER or higher detected. The build may fail."
+    echo "   Please ensure Qt6 development packages are installed."
+    echo "   Continuing with build anyway..."
 else
     echo "✅ Qt requirement satisfied, skipping build"
 fi
@@ -396,6 +393,7 @@ else
 fi
 
 echo "🏗️ Building project with CMake..."
+rm -rf build
 mkdir -p build
 cd build
 
