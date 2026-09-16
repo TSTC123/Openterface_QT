@@ -570,6 +570,21 @@ void GlobalSetting::clearSerialPortBaudrate() {
     m_settings.sync();
 }
 
+// User-selected baudrate: persists across reconnections (separate from device's actual running baudrate)
+void GlobalSetting::setUserSelectedBaudrate(int baudrate) {
+    m_settings.setValue("serial/user_baudrate", baudrate);
+    m_settings.sync();
+}
+
+int GlobalSetting::getUserSelectedBaudrate() const {
+    return m_settings.value("serial/user_baudrate", -1).toInt(); // -1 means no user selection
+}
+
+void GlobalSetting::clearUserSelectedBaudrate() {
+    m_settings.remove("serial/user_baudrate");
+    m_settings.sync();
+}
+
 // ARM architecture baudrate performance prompt
 void GlobalSetting::setArmBaudratePromptDisabled(bool disabled) {
     m_settings.setValue("serial/armBaudratePromptDisabled", disabled);

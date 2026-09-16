@@ -125,6 +125,14 @@ public:
     void setSerialPortBaudrate(int baudrate);
     int getSerialPortBaudrate() const;
     void clearSerialPortBaudrate();
+
+    // User's desired baudrate (persists across device reconnections)
+    // Separate from getSerialPortBaudrate() which reflects device's ACTUAL running baudrate.
+    // setUserSelectedBaudrate() writes to BOTH; sendAndProcessConfigCommand() only updates
+    // the device baudrate (for UI display), preserving the user's preference.
+    void setUserSelectedBaudrate(int baudrate);
+    int getUserSelectedBaudrate() const;
+    void clearUserSelectedBaudrate();
     
     // ARM architecture baudrate performance prompt
     void setArmBaudratePromptDisabled(bool disabled);

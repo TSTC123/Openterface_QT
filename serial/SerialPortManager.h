@@ -453,6 +453,12 @@ private:
     QString m_pendingInitPortName;
     int m_pendingInitBaudrate = 0;
 
+    // Auto-apply state: when device hardware resets to factory baudrate (e.g., 9600 on CH9329)
+    // but user has a different stored preference (user_baudrate), auto-apply after connection.
+    std::atomic<bool> m_autoApplyInProgress = false;
+    int m_autoApplyAttempts = 0;
+    static constexpr int MAX_AUTO_APPLY_ATTEMPTS = 2;
+
     // Port chain delayed clear to prevent race conditions during rapid hotplug
     QTimer* m_portChainClearTimer = nullptr;
     QString m_pendingPortChainClear;

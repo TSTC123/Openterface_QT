@@ -992,18 +992,36 @@ void SerialPortManager::onSerialPortConnected(const QString &portName){
 }
 
 int SerialPortManager::determineBaudrate() const {
+    // Priority 1: User's explicit selection (persists across reconnections)
+    int userSelected = GlobalSetting::instance().getUserSelectedBaudrate();
+    if (userSelected > 0) {
+        qCDebug(log_core_serial_config) << "Using user-selected baudrate:" << userSelected;
+        if (m_chipStrategy) {
+            return m_chipStrategy->determineInitialBaudrate(userSelected);
+        }
+        return userSelected;
+    }
+
+    // Priority 2: Device's last known baudrate (may be overwritten by sendAndProcessConfigCommand)
     int stored = GlobalSetting::instance().getSerialPortBaudrate();
-    
+    if (stored > 0) {
+        qCDebug(log_core_serial_config) << "Using stored device baudrate:" << stored;
+        if (m_chipStrategy) {
+            return m_chipStrategy->determineInitialBaudrate(stored);
+        }
+        return stored;
+    }
+
     // Use chip strategy if available
     if (m_chipStrategy) {
-        return m_chipStrategy->determineInitialBaudrate(stored);
+        return m_chipStrategy->determineInitialBaudrate(-1);
     }
-    
+
     // Fallback to legacy behavior
     if (isChipTypeCH32V208()) {
         return BAUDRATE_HIGHSPEED;  // Always 115200
     }
-    return stored > 0 ? stored : DEFAULT_BAUDRATE;
+    return DEFAULT_BAUDRATE;
 }
 
 bool SerialPortManager::openPortWithRetries(const QString &/*portName*/, int /*tryBaudrate*/) {
@@ -1020,11 +1038,13 @@ ConfigResult SerialPortManager::sendAndProcessConfigCommand() {
     ConfigResult result;
     QByteArray retByte = sendSyncCommand(CMD_GET_PARA_CFG, true);
     if (retByte.isEmpty()) return result;
-    
+
     // qCDebug(log_core_serial_conn) << "Data read from serial port: " << retByte.toHex(' ');
     CmdDataParamConfig config = CmdDataParamConfig::fromByteArray(retByte);
 
-    // Persist key parameters to GlobalSetting so UI and other modules can access device configuration
+    // Persist device current baudrate (for UI display only)
+    // IMPORTANT: Do NOT overwrite user's desired baudrate (stored in serial/user_baudrate)
+    // The device may be running at fallback baudrate (9600) while user wants 115200
     GlobalSetting::instance().setSerialPortBaudrate(static_cast<int>(config.baudrate));
     GlobalSetting::instance().setVID(QString("%1").arg(config.vid, 4, 16, QChar('0')).toUpper());
     GlobalSetting::instance().setPID(QString("%1").arg(config.pid, 4, 16, QChar('0')).toUpper());
@@ -1035,10 +1055,13 @@ ConfigResult SerialPortManager::sendAndProcessConfigCommand() {
                              << "VID:" << QString("%1").arg(config.vid, 4, 16, QChar('0')).toUpper()
                              << "PID:" << QString("%1").arg(config.pid, 4, 16, QChar('0')).toUpper()
                              << "custom_usb_desc:" << QString("0x%1").arg(config.custom_usb_desc, 2, 16, QChar('0'));
-    
+
     static QSettings settings("Techxartisan", "Openterface");
     Q_UNUSED(settings.value("hardware/operatingMode", 0x02).toUInt()); // hostConfigMode unused in this context
     result.mode = config.mode;
+    // IMPORTANT: Set workingBaudrate from device's actual response, not default (9600)
+    // This was a bug: workingBaudrate was always 9600, causing UI to show wrong baudrate
+    result.workingBaudrate = static_cast<int>(config.baudrate);
     result.success = true;
     return result;
 }
@@ -1225,6 +1248,9 @@ void SerialPortManager::attemptCH9329Connection(const QString &portName, const Q
                 handleChipSpecificLogic(config);
                 storeBaudrateIfNeeded(config.workingBaudrate);
 
+                // Reset auto-apply counter on successful connection
+                m_autoApplyAttempts = 0;
+
                 // Set ready state and sync with command coordinator
                 ready = true;
                 if (m_commandCoordinator) {
@@ -1232,6 +1258,28 @@ void SerialPortManager::attemptCH9329Connection(const QString &portName, const Q
                 }
 
                 emit serialPortConnectionSuccess(portName);
+
+                // Check if user's desired baudrate differs from what we actually connected at.
+                // If so, auto-apply user's preference (handles CH9329 hardware reset to 9600 on power cycle).
+                // This is scheduled asynchronously to avoid blocking the connection success path.
+                int userBaudrate = GlobalSetting::instance().getUserSelectedBaudrate();
+                if (userBaudrate > 0
+                    && userBaudrate != currentBaud
+                    && m_chipStrategy
+                    && m_chipStrategy->supportsBaudrate(userBaudrate)
+                    && !m_autoApplyInProgress
+                    && m_autoApplyAttempts < MAX_AUTO_APPLY_ATTEMPTS) {
+                    m_autoApplyInProgress = true;
+                    m_autoApplyAttempts++;
+                    qCInfo(log_core_serial_config) << "User baudrate" << userBaudrate
+                                                   << "differs from connected baudrate" << currentBaud
+                                                   << "- scheduling auto-apply (attempt" << m_autoApplyAttempts << ")";
+                    QTimer::singleShot(500, this, [this, userBaudrate]() {
+                        m_autoApplyInProgress = false;
+                        qCInfo(log_core_serial_config) << "Auto-applying user baudrate:" << userBaudrate;
+                        applyCommandBasedBaudrateChange(userBaudrate, "Auto-apply user baudrate");
+                    });
+                }
                 return;
             }
         }
@@ -3327,7 +3375,10 @@ void SerialPortManager::setUserSelectedBaudrate(int baudRate) {
     }
     
     // Store the user selection immediately
+    // Write to BOTH keys: 'serial/baudrate' (device display, backward compat)
+    // and 'serial/user_baudrate' (persists user's intent across reconnections)
     GlobalSetting::instance().setSerialPortBaudrate(baudRate);
+    GlobalSetting::instance().setUserSelectedBaudrate(baudRate);
     
     // Handle CH32V208 chip - simple close/reopen, no commands
     if (isChipTypeCH32V208()) {
@@ -3362,6 +3413,7 @@ void SerialPortManager::setUserSelectedBaudrate(int baudRate) {
 void SerialPortManager::clearStoredBaudrate() {
     qCDebug(log_core_serial_config) << "Clearing stored baudrate setting";
     GlobalSetting::instance().clearSerialPortBaudrate();
+    GlobalSetting::instance().clearUserSelectedBaudrate();
 
     // Also reset runtime state so that getCurrentBaudrate() falls back to the actual serial port
     // This prevents stale state (e.g., 9600) causing tests to incorrectly report a mismatch after factory reset
@@ -4033,7 +4085,7 @@ void SerialPortManager::applyCommandBasedBaudrateChange(int baudRate, const QStr
     } else {
         command = CMD_SET_PARA_CFG_PREFIX_115200;
     }
-    command[5] = mode; 
+    command[5] = mode;
     command.append(CMD_SET_PARA_CFG_MID);
     sendSyncCommand(command, true);
     bool success = sendResetCommand();
@@ -4043,6 +4095,9 @@ void SerialPortManager::applyCommandBasedBaudrateChange(int baudRate, const QStr
     success = success && restartPort();
     if (success) {
         qCInfo(log_core_serial_config) << logPrefix << "applied successfully:" << baudRate;
+        // Update the display baudrate (device's current running baudrate)
+        // Note: user's preference (serial/user_baudrate) is NOT touched here
+        GlobalSetting::instance().setSerialPortBaudrate(baudRate);
     } else {
         qCWarning(log_core_serial_config) << logPrefix << "Failed to apply user selected baudrate:" << baudRate;
     }
