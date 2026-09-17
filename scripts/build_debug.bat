@@ -2,11 +2,11 @@
 echo Building Openterface QT in Debug mode...
 
 REM Set Qt environment
-set QT_DIR=E:\QT\6.5.3\mingw_64
+set QT_DIR=D:\newsoft\Qt6\6.5.3\mingw_64
 set PATH=%QT_DIR%\bin;%PATH%
 
-REM Set MinGW environment  
-set MINGW_DIR=E:\QT\Tools\mingw1120_64
+REM Set MinGW environment
+set MINGW_DIR=D:\newsoft\Qt6\Tools\mingw1120_64
 set PATH=%MINGW_DIR%\bin;%PATH%
 
 REM Navigate to project root
