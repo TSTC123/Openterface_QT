@@ -3016,10 +3016,44 @@ QByteArray SerialPortManager::sendSyncCommand(const QByteArray &data, bool force
     if (m_isShuttingDown || !m_commandCoordinator) {
         return QByteArray();
     }
-    
+
+    // THREAD SAFETY: If called from a different thread, route through worker thread.
+    // QSerialPort has thread affinity - accessing it from a non-owner thread is undefined
+    // behavior and causes race conditions (e.g. diagnostics test calling from main thread
+    // while periodic GET_INFO timer runs on worker thread, consuming responses).
+    if (QThread::currentThread() != m_serialWorkerThread) {
+        qCDebug(log_core_serial) << "sendSyncCommand called from different thread, routing through worker thread";
+        std::atomic<bool> done{false};
+        QByteArray result;
+
+        QMetaObject::invokeMethod(this, [this, data, force, &done, &result]() {
+            m_commandCoordinator->setReady(ready.load());
+            result = m_commandCoordinator->sendSyncCommand(serialPort, data, force);
+            done.store(true);
+        }, Qt::QueuedConnection);
+
+        // Wait for completion using event loop (same pattern as factoryResetHipChipSync)
+        QEventLoop loop;
+        QTimer checkTimer;
+        QObject::connect(&checkTimer, &QTimer::timeout, [&]() {
+            if (done.load()) loop.quit();
+        });
+        checkTimer.start(50);
+
+        // Overall timeout: command timeout + buffer
+        QTimer overallTimeout;
+        overallTimeout.setSingleShot(true);
+        QObject::connect(&overallTimeout, &QTimer::timeout, &loop, &QEventLoop::quit);
+        overallTimeout.start(5000); // 5 second timeout
+
+        loop.exec();
+        return result;
+    }
+
+    // Already in worker thread, proceed directly
     // Update command coordinator ready state with our current ready state
     m_commandCoordinator->setReady(ready.load());
-    
+
     // Delegate to command coordinator
     return m_commandCoordinator->sendSyncCommand(serialPort, data, force);
 }
