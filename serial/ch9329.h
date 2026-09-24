@@ -6,17 +6,24 @@
 #include <QDebug>
 #include <QLoggingCategory>
 
+// Core protocol headers — input-packet building is in SerialProtocolAdapter.
+// Legacy QByteArray templates below (CMD_SEND_KB_GENERAL_DATA, MOUSE_*_PREFIX)
+// are kept for callers that still need raw templates.
+#include "openterface/protocol_ch9329.h"
+#include "openterface/input.h"
+
 Q_DECLARE_LOGGING_CATEGORY(log_core_serial)
 
 
+// ── Legacy QByteArray templates (deprecated, kept for existing callers) ──
 const QByteArray MOUSE_ABS_ACTION_PREFIX = QByteArray::fromHex("57 AB 00 04 07 02");
 const QByteArray MOUSE_REL_ACTION_PREFIX = QByteArray::fromHex("57 AB 00 05 05 01");
+const QByteArray CMD_SEND_KB_GENERAL_DATA = QByteArray::fromHex("57 AB 00 02 08 00 00 00 00 00 00 00 00");
 const QByteArray CMD_GET_PARA_CFG = QByteArray::fromHex("57 AB 00 08 00");
 const QByteArray CMD_GET_INFO = QByteArray::fromHex("57 AB 00 01 00");
 const QByteArray CMD_RESET = QByteArray::fromHex("57 AB 00 0F 00");
 const QByteArray CMD_SET_DEFAULT_CFG = QByteArray::fromHex("57 AB 00 0C 00");
 const QByteArray CMD_SET_USB_STRING_PREFIX = QByteArray::fromHex("57 AB 00 0B");
-const QByteArray CMD_SEND_KB_GENERAL_DATA = QByteArray::fromHex("57 AB 00 02 08 00 00 00 00 00 00 00 00");
 const QByteArray CMD_SET_PARA_CFG_PREFIX_115200 = QByteArray::fromHex("57 AB 00 09 32 00 80 00 00 01 C2 00");
 const QByteArray CMD_SET_PARA_CFG_PREFIX_9600 = QByteArray::fromHex("57 AB 00 09 32 00 80 00 00 00 25 80");
 const QByteArray CMD_SET_PARA_CFG_MID = QByteArray::fromHex("08 00 00 03 86 1a 29 e1 00 00 00 01 00 0d 00 00 00 00 00 00 00") + QByteArray(22, 0x00) ;

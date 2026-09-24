@@ -148,6 +148,7 @@ set(SERIAL_SOURCES
     serial/SerialStatistics.cpp serial/SerialStatistics.h
     serial/FactoryResetManager.cpp serial/FactoryResetManager.h
     serial/serial_hotplug_handler.cpp serial/serial_hotplug_handler.h
+    serial/SerialProtocolAdapter.cpp serial/SerialProtocolAdapter.h
     serial/ch9329.h
     serial/chipstrategy/IChipStrategy.h
     serial/chipstrategy/CH9329Strategy.cpp serial/chipstrategy/CH9329Strategy.h

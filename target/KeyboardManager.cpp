@@ -23,6 +23,7 @@
 #include "KeyboardManager.h"
 #include "KeyboardLayouts.h"
 #include "../serial/ch9329.h"
+#include "../serial/SerialProtocolAdapter.h"
 #include "log/opflogging.h"
 #include "../ui/globalsetting.h"
 
@@ -121,7 +122,7 @@ QString KeyboardManager::mapModifierKeysToNames(int modifiers) {
 }
 
 void KeyboardManager::handleKeyboardAction(int keyCode, int modifiers, bool isKeyDown, unsigned int nativeVirtualKey) {
-    QByteArray keyData = CMD_SEND_KB_GENERAL_DATA;
+    QByteArray keyData;
     unsigned int combinedModifiers = 0;
 
     // Debug the incoming key code with modifier names and native VK (when available)
@@ -654,70 +655,27 @@ void KeyboardManager::handleKeyboardAction(int keyCode, int modifiers, bool isKe
                 }
             } else {
                 currentMappedKeyCodes.remove(mappedKeyCode);
-                // BUG FIX: Do NOT clear modifiers from currentModifiers on non-modifier key release.
-                //
-                // Previous code: currentModifiers &= ~modifiers;
-                // This was clearing persistent modifier state when a regular key was released,
-                // because Qt's event->modifiers() reflects ALL currently-held modifiers.
-                //
-                // Example of the bug:
-                //   1. User presses Shift  → currentModifiers |= 0x02 (left shift)
-                //   2. User presses A      → combinedModifiers = currentModifiers | modifiers = 0x02
-                //   3. User releases A     → modifiers = 0x02 (Shift still held)
-                //     OLD: currentModifiers &= ~0x02 → currentModifiers = 0 ← WRONG! Shift still held!
-                //     NEW: currentModifiers unchanged → currentModifiers = 0x02 ← CORRECT!
-                //
-                // Modifier state should ONLY be tracked through actual modifier key press/release
-                // events (handled in the modifier branch above). Non-modifier key events should
-                // NOT modify currentModifiers.
-                //
-                // For MCP/API transient modifiers: they're already included in combinedModifiers
-                // via (currentModifiers | modifiers) so each HID report is correct regardless.
+                // Do NOT clear modifiers on non-modifier key release —
+                // modifier state is only tracked through modifier key events.
             }
         }
 
-        // Build the modifier byte and keycode array with CH9329 workaround.
-        //
-        // CH9329 firmware issue: modifier byte bits 2-7 (Alt=0x04, GUI=0x08) are
-        // not correctly processed by some CH9329 firmware versions on Linux targets.
-        // Bits 0-1 (Ctrl=0x01, Shift=0x02) work correctly.
-        //
-        // Workaround strategy:
-        // - Ctrl (0x01) and Shift (0x02): set in modifier byte ONLY (these work)
-        // - Alt (0x04) and GUI (0x08): put keycodes in keycode array ONLY,
-        //   do NOT set in modifier byte (avoids CH9329 firmware bug)
-        // - This matches how sendCtrlAltDel() works: Ctrl/Alt in both byte and array,
-        //   but Alt is in the array which the target processes correctly.
-        //
-        // USB HID spec: modifier keycodes (0xE0-0xE7) in the keycode array are
-        // treated as modifier state by compliant HID implementations.
+        // CH9329 firmware workaround: Alt/GUI modifier bits are unreliable on some
+        // firmware versions. SerialProtocolAdapter::buildKeyboardCh9329Packet handles
+        // this — keeps Ctrl/Shift in modifier byte, expands all modifiers to HID codes.
 
-        // Only set Ctrl and Shift bits in modifier byte (these are known to work)
-        uint8_t safeModifierByte = combinedModifiers & 0x03; // Only bits 0-1
-        keyData[5] = safeModifierByte;
-
-        // Put ALL active modifier keycodes in the keycode array
-        int keyIndex = 0;
-        if (combinedModifiers & 0x01) keyData[7 + keyIndex++] = 0xE0; // LCtrl
-        if (combinedModifiers & 0x02) keyData[7 + keyIndex++] = 0xE1; // LShift
-        if (combinedModifiers & 0x04) keyData[7 + keyIndex++] = 0xE2; // LAlt
-        if (combinedModifiers & 0x08) keyData[7 + keyIndex++] = 0xE3; // LGUI
-        if (combinedModifiers & 0x10) keyData[7 + keyIndex++] = 0xE4; // RCtrl
-        if (combinedModifiers & 0x20) keyData[7 + keyIndex++] = 0xE5; // RShift
-        if (combinedModifiers & 0x40) keyData[7 + keyIndex++] = 0xE6; // RAlt
-        if (combinedModifiers & 0x80) keyData[7 + keyIndex++] = 0xE7; // RGUI
-
-        // Then add regular keycodes from currentMappedKeyCodes
-        for (const auto &key : currentMappedKeyCodes) {
-            if (keyIndex < 6) {
-                keyData[7 + keyIndex] = key;
-                keyIndex++;
+        // Extract regular keycodes from currentMappedKeyCodes into an array for Core builder
+        uint8_t extraKeys[6];
+        int extraCount = 0;
+        for (auto key : currentMappedKeyCodes) {
+            if (extraCount < 6) {
+                extraKeys[extraCount++] = static_cast<uint8_t>(key);
             }
         }
-        // Fill remaining slots with 0
-        for (; keyIndex < 6; ++keyIndex) {
-            keyData[7 + keyIndex] = 0;
-        }
+
+        // Use Core/CH9329 packet builder via SerialProtocolAdapter
+        keyData = SerialProtocolAdapter::buildKeyboardCh9329Packet(
+            static_cast<uint8_t>(combinedModifiers), extraKeys, extraCount);
 
         // Send the command
         DEBUG_LOG(QString("SENDING keyData: [%1] (size=%2)")
@@ -728,9 +686,6 @@ void KeyboardManager::handleKeyboardAction(int keyCode, int modifiers, bool isKe
                   .arg(currentMappedKeyCodes.size()));
 
         // Send the keyboard command using sendCommandAsync to ensure checksum is added
-        fprintf(stderr, "[KB-DIAG] Sending HID report: [%s] combinedModifiers=0x%x mappedKeyCode=0x%x isKeyDown=%d\n",
-                keyData.toHex(' ').constData(), combinedModifiers, mappedKeyCode, isKeyDown);
-        fflush(stderr);
         emit SerialPortManager::getInstance().sendCommandAsync(keyData, false);
         DEBUG_LOG("sendCommandAsync done");
 
@@ -747,7 +702,6 @@ void KeyboardManager::handleKeyboardAction(int keyCode, int modifiers, bool isKe
 
 void KeyboardManager::handlePasteChar(int key, int modifiers){
     unsigned int control = 0x00;
-    QByteArray keyData = CMD_SEND_KB_GENERAL_DATA;
     unsigned int mappedKey = currentLayout.keyMap.value(key, 0);
     if (mappedKey == 0) {
         uint32_t unicodeValue = key;
@@ -764,11 +718,14 @@ void KeyboardManager::handlePasteChar(int key, int modifiers){
             control = 0x00;
             break;
     }
-    keyData[5] = control;
-    keyData[7] = mappedKey;
+    // Use Core packet builder (raw mode — no CH9329 workaround for paste)
+    uint8_t keys[1] = { static_cast<uint8_t>(mappedKey) };
+    QByteArray keyData = SerialProtocolAdapter::buildKeyboardRawPacket(
+        static_cast<uint8_t>(control), keys, 1);
     emit SerialPortManager::getInstance().sendCommandAsync(keyData, false);
     QThread::msleep(3);
-    emit SerialPortManager::getInstance().sendCommandAsync(CMD_SEND_KB_GENERAL_DATA, false);
+    emit SerialPortManager::getInstance().sendCommandAsync(
+        SerialProtocolAdapter::buildKeyboardRelease(), false);
 }
 
 int KeyboardManager::handleKeyModifiers(int modifier, bool isKeyDown) {
@@ -906,7 +863,8 @@ void KeyboardManager::handlePastingCharacters(const QString& text, const QMap<ui
             state->reconnectAttempts = 0;
 
             // Send a priming null key event to reset USB HID channel after reconnection
-            emit SerialPortManager::getInstance().sendCommandAsync(CMD_SEND_KB_GENERAL_DATA, false);
+            emit SerialPortManager::getInstance().sendCommandAsync(
+                SerialProtocolAdapter::buildKeyboardRelease(), false);
             QThread::msleep(50);
         }
 
@@ -925,7 +883,9 @@ void KeyboardManager::handlePastingCharacters(const QString& text, const QMap<ui
 
             handlePasteChar(key, modifiers);
             QThread::msleep(GlobalSetting::instance().getChatTypingDelayMs());
-            emit SerialPortManager::getInstance().sendCommandAsync(CMD_SEND_KB_GENERAL_DATA, false);
+            // Extra release (belt-and-suspenders; handlePasteChar already released)
+            emit SerialPortManager::getInstance().sendCommandAsync(
+                SerialProtocolAdapter::buildKeyboardRelease(), false);
 
             state->typedChars++;
             state->remaining.remove(0, 1);
@@ -973,7 +933,8 @@ void KeyboardManager::handlePastingCharacters(const QString& text, const QMap<ui
         // Send a priming null key event to reset the USB HID channel
         // This ensures the CH9329 chip and target OS are ready for the first character
         qCDebug(log_host_kb_special) << "Paste: sending priming null key event to reset USB HID channel";
-        emit SerialPortManager::getInstance().sendCommandAsync(CMD_SEND_KB_GENERAL_DATA, false);
+        emit SerialPortManager::getInstance().sendCommandAsync(
+            SerialProtocolAdapter::buildKeyboardRelease(), false);
         QThread::msleep(50);  // Give time for the null event to be processed
         (*tick)();
     });
@@ -1003,37 +964,30 @@ void KeyboardManager::sendFunctionKey(int functionKeyCode) {
 }
 
 void KeyboardManager::sendKeyToTarget(uint8_t keyCode, bool isPressed) {
-    QByteArray keyData = CMD_SEND_KB_GENERAL_DATA;
-    keyData[5] = isPressed ? currentModifiers : 0;
-    keyData[7] = isPressed ? keyCode : 0;
+    uint8_t keys[1] = { static_cast<uint8_t>(isPressed ? keyCode : 0) };
+    QByteArray keyData = SerialProtocolAdapter::buildKeyboardRawPacket(
+        isPressed ? static_cast<uint8_t>(currentModifiers) : 0, keys, 1);
 
     qCDebug(log_host_kb_special) << "Sending function key:" << (isPressed ? "press" : "release") << "keyCode:" << keyCode;
     emit SerialPortManager::getInstance().sendCommandAsync(keyData, false);
 }
 
 void KeyboardManager::sendCtrlAltDel() {
-    QByteArray keyData = CMD_SEND_KB_GENERAL_DATA;
-
-    // Press Ctrl+Alt
-    keyData[5] = 0x05;  // 0x01 (Ctrl) | 0x04 (Alt)
-    keyData[7] = CTRL_KEY;
-    keyData[8] = ALT_KEY;
+    // Press Ctrl+Alt: modifier byte 0x05 (Ctrl+Alt), raw mode (no workaround)
+    uint8_t ca_keys[] = { CTRL_KEY, ALT_KEY };
+    QByteArray keyData = SerialProtocolAdapter::buildKeyboardRawPacket(0x05, ca_keys, 2);
     emit SerialPortManager::getInstance().sendCommandAsync(keyData, false);
     QThread::msleep(1);
 
-    // Press Del
-    keyData[7] = CTRL_KEY;
-    keyData[8] = ALT_KEY;
-    keyData[9] = DEL_KEY;
+    // Press Del (in addition to Ctrl+Alt already held)
+    uint8_t cad_keys[] = { CTRL_KEY, ALT_KEY, DEL_KEY };
+    keyData = SerialProtocolAdapter::buildKeyboardRawPacket(0x05, cad_keys, 3);
     emit SerialPortManager::getInstance().sendCommandAsync(keyData, false);
     QThread::msleep(1);
 
     // Release all keys
-    keyData[5] = 0x00;
-    keyData[7] = 0x00;
-    keyData[8] = 0x00;
-    keyData[9] = 0x00;
-    emit SerialPortManager::getInstance().sendCommandAsync(keyData, false);
+    emit SerialPortManager::getInstance().sendCommandAsync(
+        SerialProtocolAdapter::buildKeyboardRelease(), false);
 
     qCDebug(log_host_kb_special) << "Sent Ctrl+Alt+Del compose key";
 }
@@ -1052,10 +1006,8 @@ void KeyboardManager::releaseAllKeys() {
                                << QString::number(currentModifiers, 16);
 
     // Build a zero HID report to release all keys on the target
-    QByteArray keyData = CMD_SEND_KB_GENERAL_DATA;
-    // keyData[5] (modifier byte) and keyData[7..12] (keycode array) are already zero
-    // in the CMD_SEND_KB_GENERAL_DATA template — just send it as-is.
-    SerialPortManager::getInstance().sendCommandAsync(keyData, false);
+    SerialPortManager::getInstance().sendCommandAsync(
+        SerialProtocolAdapter::buildKeyboardRelease(), false);
 
     currentMappedKeyCodes.clear();
     currentModifiers = 0;
