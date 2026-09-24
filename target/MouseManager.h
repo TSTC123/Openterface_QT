@@ -25,6 +25,7 @@
 
 
 #include "serial/SerialPortManager.h"
+#include "serial/SerialProtocolAdapter.h"
 #include "ui/statusevents.h"
 
 #include <QObject>
@@ -95,15 +96,12 @@ public:
 
 private:
     void moveMouse(int x, int y) {
-        QByteArray data;
-
-        data.append(MOUSE_ABS_ACTION_PREFIX);
-        data.append(static_cast<char>(0));
-        data.append(static_cast<char>(x & 0xFF));
-        data.append(static_cast<char>((x >> 8) & 0xFF));
-        data.append(static_cast<char>(y & 0xFF));
-        data.append(static_cast<char>((y >> 8) & 0xFF));
-        data.append(static_cast<char>(0));
+        // Use Core packet builder (via SerialProtocolAdapter)
+        QByteArray data = SerialProtocolAdapter::buildMouseAbsPacket(
+            SerialProtocolAdapter::BTN_NONE,
+            static_cast<uint16_t>(x),
+            static_cast<uint16_t>(y),
+            0);
 
         // send the data to serial
         SerialPortManager::getInstance().sendCommandAsync(data, false);

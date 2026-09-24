@@ -22,6 +22,7 @@
 
 #include "MouseManager.h"
 #include "serial/SerialPortManager.h"
+#include "serial/SerialProtocolAdapter.h"
 #include "log/opflogging.h"
 #include <QThread>
 
@@ -60,13 +61,12 @@ void MouseManager::handleAbsoluteMouseAction(int x, int y, int mouse_event, int 
     QByteArray data;
     uint8_t mappedWheelMovement = mapScrollWheel(wheelMovement);
     if(mappedWheelMovement>0){    qCDebug(log_mouse_abs) << "mappedWheelMovement:" << mappedWheelMovement; }
-    data.append(MOUSE_ABS_ACTION_PREFIX);
-    data.append(static_cast<char>(mouse_event));
-    data.append(static_cast<char>(x & 0xFF));
-    data.append(static_cast<char>((x >> 8) & 0xFF));
-    data.append(static_cast<char>(y & 0xFF));
-    data.append(static_cast<char>((y >> 8) & 0xFF));
-    data.append(static_cast<char>(mappedWheelMovement & 0xFF));
+    // Use Core packet builder (via SerialProtocolAdapter) — strips checksum for sendCommandAsync
+    data = SerialProtocolAdapter::buildMouseAbsPacket(
+        static_cast<uint8_t>(mouse_event),
+        static_cast<uint16_t>(x),
+        static_cast<uint16_t>(y),
+        static_cast<int8_t>(mappedWheelMovement));
 
     // send the data to serial
     SerialPortManager::getInstance().sendCommandAsync(data, false);
@@ -99,11 +99,12 @@ void MouseManager::handleRelativeMouseAction(int dx, int dy, int mouse_event, in
     QByteArray data;
     uint8_t mappedWheelMovement = mapScrollWheel(wheelMovement);
     if(mappedWheelMovement>0){    qCDebug(log_mouse_rel) << "mappedWheelMovement:" << mappedWheelMovement; }
-    data.append(MOUSE_REL_ACTION_PREFIX);
-    data.append(static_cast<char>(mouse_event));
-    data.append(static_cast<char>(dx & 0xFF));
-    data.append(static_cast<char>(dy & 0xFF));
-    data.append(static_cast<char>(mappedWheelMovement & 0xFF));
+    // Use Core packet builder (via SerialProtocolAdapter) — strips checksum for sendCommandAsync
+    data = SerialProtocolAdapter::buildMouseRelPacket(
+        static_cast<uint8_t>(mouse_event),
+        static_cast<int8_t>(dx),
+        static_cast<int8_t>(dy),
+        static_cast<int8_t>(mappedWheelMovement));
 
     // send the data to serial
     SerialPortManager::getInstance().sendCommandAsync(data, false);
@@ -177,14 +178,12 @@ void MouseManager::releaseAllButtons() {
                            << "dragging:" << isDragging;
 
     // Send a mouse report with no buttons pressed at the last known position
-    QByteArray data;
-    data.append(MOUSE_ABS_ACTION_PREFIX);
-    data.append(static_cast<char>(0));  // no buttons
-    data.append(static_cast<char>(lastX & 0xFF));
-    data.append(static_cast<char>((lastX >> 8) & 0xFF));
-    data.append(static_cast<char>(lastY & 0xFF));
-    data.append(static_cast<char>((lastY >> 8) & 0xFF));
-    data.append(static_cast<char>(0));  // no wheel
+    // Use Core packet builder (via SerialProtocolAdapter)
+    QByteArray data = SerialProtocolAdapter::buildMouseAbsPacket(
+        SerialProtocolAdapter::BTN_NONE,
+        static_cast<uint16_t>(lastX),
+        static_cast<uint16_t>(lastY),
+        0);
     SerialPortManager::getInstance().sendCommandAsync(data, false);
 
     currentMouseButton = 0;
