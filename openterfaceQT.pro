@@ -280,7 +280,6 @@ HEADERS  += \
     target/KeyboardLayouts.h \
     target/KeyboardManager.h \
     target/MouseManager.h \
-    target/Keymapping.h \
     target/HIDScancodeReference.h \
     target/mouseeventdto.h \
     resources/version.h \

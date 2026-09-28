@@ -174,7 +174,6 @@ set(SERVER_SOURCES
 set(TARGET_SOURCES
     target/KeyboardLayouts.cpp target/KeyboardLayouts.h
     target/KeyboardManager.cpp target/KeyboardManager.h
-    target/Keymapping.h
     target/HIDScancodeReference.h
     target/MouseManager.cpp target/MouseManager.h
     target/mouseeventdto.cpp target/mouseeventdto.h
