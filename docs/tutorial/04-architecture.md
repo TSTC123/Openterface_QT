@@ -35,7 +35,7 @@ The codebase follows a modular directory layout where each directory owns a dist
 | [`server/`](server/) | TCP server for remote command/image access | `TcpServer`, `TcpResponse` |
 | [`scripts/`](scripts/) | Embedded scripting language for automation | `Lexer`, `Parser`, `ASTNode`, `SemanticAnalyzer`, `ScriptExecutor`, `ScriptRunner` |
 | [`wch/`](wch/) | WCH chip ISP firmware flashing utilities | `WCHFlasher`, `WCHUSBTransport`, `WCHProtocol`, `WCHHexParser`, `WCHDevice` |
-| [`target/`](target/) | Keyboard/mouse input forwarding to target (HID emulation) | `KeyboardManager`, `MouseManager`, `Keymapping` |
+| [`target/`](target/) | Keyboard/mouse input forwarding to target (HID emulation) | `KeyboardManager`, `MouseManager`, `KeyboardLayouts` |
 | [`config/`](config/) | JSON keyboard layouts + Qt translation files | 11 keyboard layouts, 12 language translations |
 | [`cmake/`](cmake/) | CMake module configuration files | `FFmpeg.cmake`, `Configuration.cmake`, `SourceFiles.cmake`, `Resources.cmake` |
 

@@ -163,7 +163,7 @@ Each layout file maps AHK-style key names to HID scancodes. The layout system is
 ### Steps
 
 1. Create a new JSON file in `config/keyboards/` with your layout name (e.g., `de_qwertz.json`)
-2. Map each key to its HID scancode using the format expected by `Keymapping`
+2. Map each key to its HID scancode using the format expected by `KeyboardLayouts`
 3. The layout will be auto-detected at startup when `KeyboardLayoutManager::getInstance().loadLayouts()` is called
 4. Users can select the layout from **Preferences → Target Control → Keyboard Layout**
 
