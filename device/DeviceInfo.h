@@ -5,6 +5,8 @@
 #include <QVariantMap>
 #include <QDateTime>
 #include <QMetaType>
+#include "openterface/device.h"
+#include "openterface/capability.h"
 
 class DeviceInfo
 {
@@ -124,6 +126,24 @@ public:
     QString getSerialPortChain() const {
         return portChain;
     }
+
+    // ── Core integration: capability and profile support ──────────────────
+
+    // Convert to Core device info structure
+    op_device_info_t toCoreDeviceInfo() const;
+
+    // Check if device has a specific capability (using Core API)
+    bool hasCapability(op_capability_id_t capability) const;
+
+    // Get device capabilities as flags (using Core API)
+    op_capability_flags_t getCapabilities() const;
+
+    // Match device to a profile (using Core API)
+    // Returns profile_id if matched, empty string if no match
+    QString matchProfile() const;
+
+    // Check if device matches a specific profile
+    bool matchesProfile(const QString& profileId) const;
 };
 
 Q_DECLARE_METATYPE(DeviceInfo)

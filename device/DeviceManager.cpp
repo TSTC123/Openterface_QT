@@ -1,4 +1,5 @@
 #include "DeviceManager.h"
+#include "DeviceAdapter.h"
 #include "platform/DeviceFactory.h"
 #include "platform/AbstractPlatformDeviceManager.h"
 #include "device/platform/DeviceConstants.h"
@@ -625,27 +626,14 @@ bool DeviceManager::switchSerialPortByPortChain(const QString& portChain)
 // This function intentionally does not consult VideoHid runtime detection.
 VideoChipType DeviceManager::getChipTypeForDevice(const DeviceInfo& device)
 {
-    // Use stored HID VID/PID if available, otherwise fall back to main device VID/PID
-    QString vid = device.hidVid.isEmpty() ? device.vid : device.hidVid;
-    QString pid = device.hidPid.isEmpty() ? device.pid : device.hidPid;
+    // Use DeviceAdapter to detect video chip type via Core API
+    // This replaces the previous hardcoded VID/PID checks
+    VideoChipType chipType = DeviceAdapter::detectVideoChipType(device);
 
-    if (!vid.isEmpty() && !pid.isEmpty()) {
-        vid = vid.toUpper().remove("0X");
-        pid = pid.toUpper().remove("0X");
+    qCDebug(log_device_manager) << "Detected video chip type:" << DeviceAdapter::videoChipTypeLabel(chipType)
+                                << "for device VID:" << device.vid << "PID:" << device.pid;
 
-        if (vid == OPENTERFACE_VID.toUpper() && pid == OPENTERFACE_PID.toUpper()) {
-            return VideoChipType::MS2109;
-        }
-        if (vid == OPENTERFACE_VID_V2.toUpper() && pid == OPENTERFACE_PID_V2.toUpper()) {
-            return VideoChipType::MS2130S;
-        }
-        if (vid == OPENTERFACE_VID_V3.toUpper() && pid == OPENTERFACE_PID_V3.toUpper()) {
-            // V3 (345F:2109) uses MS2109S register mapping
-            return VideoChipType::MS2109S;
-        }
-    }
-
-    return VideoChipType::UNKNOWN;
+    return chipType;
 }
 
 VideoChipType DeviceManager::getChipTypeForPortChain(const QString& portChain)

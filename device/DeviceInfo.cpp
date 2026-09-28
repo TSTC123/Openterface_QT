@@ -1,4 +1,6 @@
 #include "DeviceInfo.h"
+#include "openterface/profile.h"
+#include <cstring>
 
 DeviceInfo::DeviceInfo(const QString& portChain)
     : portChain(portChain)
@@ -94,4 +96,118 @@ bool DeviceInfo::operator==(const DeviceInfo& other) const
 bool DeviceInfo::operator!=(const DeviceInfo& other) const
 {
     return !(*this == other);
+}
+
+// ── Core integration: capability and profile support ──────────────────
+
+op_device_info_t DeviceInfo::toCoreDeviceInfo() const
+{
+    op_device_info_t coreDevice;
+    op_device_info_init(&coreDevice);
+
+    // Copy device identification
+    if (!deviceInstanceId.isEmpty()) {
+        QByteArray id = deviceInstanceId.toLocal8Bit();
+        strncpy(coreDevice.device_id, id.constData(), OP_DEVICE_ID_CAP - 1);
+        coreDevice.device_id[OP_DEVICE_ID_CAP - 1] = '\0';
+    }
+
+    if (!portChain.isEmpty()) {
+        QByteArray chain = portChain.toLocal8Bit();
+        strncpy(coreDevice.port_chain, chain.constData(), OP_PORT_CHAIN_CAP - 1);
+        coreDevice.port_chain[OP_PORT_CHAIN_CAP - 1] = '\0';
+    }
+
+    // Convert VID/PID from hex string to uint16_t
+    if (!vid.isEmpty()) {
+        bool ok;
+        uint16_t v = vid.toUInt(&ok, 16);
+        if (ok) coreDevice.vendor_id = v;
+    }
+
+    if (!pid.isEmpty()) {
+        bool ok;
+        uint16_t p = pid.toUInt(&ok, 16);
+        if (ok) coreDevice.product_id = p;
+    }
+
+    // Copy interface paths
+    if (!serialPortPath.isEmpty()) {
+        QByteArray path = serialPortPath.toLocal8Bit();
+        strncpy(coreDevice.serial_path, path.constData(), OP_DEVICE_PATH_CAP - 1);
+        coreDevice.serial_path[OP_DEVICE_PATH_CAP - 1] = '\0';
+        coreDevice.interface_flags |= OP_DEVICE_IF_SERIAL;
+    }
+
+    if (!hidDevicePath.isEmpty()) {
+        QByteArray path = hidDevicePath.toLocal8Bit();
+        strncpy(coreDevice.hid_path, path.constData(), OP_DEVICE_PATH_CAP - 1);
+        coreDevice.hid_path[OP_DEVICE_PATH_CAP - 1] = '\0';
+        coreDevice.interface_flags |= OP_DEVICE_IF_HID;
+    }
+
+    if (!cameraDevicePath.isEmpty()) {
+        QByteArray path = cameraDevicePath.toLocal8Bit();
+        strncpy(coreDevice.camera_path, path.constData(), OP_DEVICE_PATH_CAP - 1);
+        coreDevice.camera_path[OP_DEVICE_PATH_CAP - 1] = '\0';
+        coreDevice.interface_flags |= OP_DEVICE_IF_CAMERA;
+    }
+
+    if (!audioDevicePath.isEmpty()) {
+        QByteArray path = audioDevicePath.toLocal8Bit();
+        strncpy(coreDevice.audio_path, path.constData(), OP_DEVICE_PATH_CAP - 1);
+        coreDevice.audio_path[OP_DEVICE_PATH_CAP - 1] = '\0';
+        coreDevice.interface_flags |= OP_DEVICE_IF_AUDIO;
+    }
+
+    // Try to match profile to populate capabilities
+    const op_device_profile_t* profile = op_profile_match(
+        coreDevice.vendor_id,
+        coreDevice.product_id,
+        coreDevice.interface_flags
+    );
+
+    if (profile) {
+        strncpy(coreDevice.profile_id, profile->profile_id, OP_DEVICE_ID_CAP - 1);
+        coreDevice.profile_id[OP_DEVICE_ID_CAP - 1] = '\0';
+        coreDevice.capabilities = profile->capabilities;
+        coreDevice.default_baudrate = profile->default_baudrate;
+        coreDevice.protocol_flags = profile->protocol_flags;
+        coreDevice.chip_hint = profile->chip_hint;
+    }
+
+    return coreDevice;
+}
+
+bool DeviceInfo::hasCapability(op_capability_id_t capability) const
+{
+    op_device_info_t coreDevice = toCoreDeviceInfo();
+    return op_device_info_has_capability(&coreDevice, capability) != 0;
+}
+
+op_capability_flags_t DeviceInfo::getCapabilities() const
+{
+    op_device_info_t coreDevice = toCoreDeviceInfo();
+    return coreDevice.capabilities;
+}
+
+QString DeviceInfo::matchProfile() const
+{
+    op_device_info_t coreDevice = toCoreDeviceInfo();
+    const op_device_profile_t* profile = op_profile_match(
+        coreDevice.vendor_id,
+        coreDevice.product_id,
+        coreDevice.interface_flags
+    );
+
+    if (profile) {
+        return QString::fromUtf8(profile->profile_id);
+    }
+    return QString();
+}
+
+bool DeviceInfo::matchesProfile(const QString& profileId) const
+{
+    QString matchedProfile = matchProfile();
+    return !matchedProfile.isEmpty() && matchedProfile == profileId;
 }
