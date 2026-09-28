@@ -30,6 +30,7 @@
 */
 
 #include "KeyboardMouse.h"
+#include "serial/SerialProtocolAdapter.h"
 #include <queue>
 #include <QDebug>
 
@@ -98,11 +99,7 @@ void KeyboardMouse::keyboardSend(){
 }
 
 uint8_t KeyboardMouse::calculateChecksum(const QByteArray &data){
-    quint32 sum = 0;
-    for (auto byte : data) {
-        sum += static_cast<unsigned char>(byte);
-    }
-    return sum % 256;
+    return SerialProtocolAdapter::calculateChecksum(data);
 }
 
 void KeyboardMouse::mouseSend(){

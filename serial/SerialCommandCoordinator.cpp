@@ -23,6 +23,7 @@
 #include "SerialCommandCoordinator.h"
 #include "SerialStatistics.h"
 #include "SerialPortManager.h"
+#include "SerialProtocolAdapter.h"
 #include <QTimer>
 #include <QLoggingCategory>
 #include <QEventLoop>
@@ -281,11 +282,7 @@ qint64 SerialCommandCoordinator::getStatsElapsedMs() const
 
 quint8 SerialCommandCoordinator::calculateChecksum(const QByteArray &data)
 {
-    quint32 sum = 0;
-    for (auto byte : data) {
-        sum += static_cast<quint8>(byte);
-    }
-    return sum % 256;
+    return SerialProtocolAdapter::calculateChecksum(data);
 }
 
 void SerialCommandCoordinator::clearCommandQueue()

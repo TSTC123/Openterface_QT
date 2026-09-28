@@ -22,6 +22,7 @@
 
 #include "SerialProtocol.h"
 #include "../SerialPortManager.h"
+#include "../SerialProtocolAdapter.h"
 #include <QDebug>
 #include <QLoggingCategory>
 
@@ -47,11 +48,7 @@ QByteArray SerialProtocol::buildPacket(const QByteArray& commandData)
 
 uint8_t SerialProtocol::calculateChecksum(const QByteArray& data)
 {
-    uint32_t sum = 0;
-    for (char byte : data) {
-        sum += static_cast<unsigned char>(byte);
-    }
-    return static_cast<uint8_t>(sum % 256);
+    return SerialProtocolAdapter::calculateChecksum(data);
 }
 
 bool SerialProtocol::verifyChecksum(const QByteArray& packet)
