@@ -8,6 +8,7 @@
 #pragma once
 
 #include "openterface/protocol_ch9329.h"
+#include "openterface/input.h"
 #include <QByteArray>
 #include <cstdint>
 
@@ -19,6 +20,16 @@ QByteArray buildMouseRelPacket(uint8_t buttons, int8_t dx, int8_t dy, int8_t whe
 QByteArray buildMouseAbsPacket(uint8_t buttons, uint16_t x, uint16_t y, int8_t wheel);
 QByteArray buildKeyboardRawPacket(uint8_t modifiers, const uint8_t keys[], int numKeys);
 QByteArray buildKeyboardCh9329Packet(uint8_t modifiers, const uint8_t extraKeys[], int numExtraKeys);
+
+// ── Checksum bridge (delegates to Core op_input_checksum) ────────────────
+
+inline uint8_t calculateChecksum(const QByteArray& data) {
+    return op_input_checksum(reinterpret_cast<const uint8_t*>(data.constData()), data.size());
+}
+
+inline uint8_t calculateChecksum(const uint8_t* data, int len) {
+    return op_input_checksum(data, len);
+}
 
 // ── Protocol constants (re-exported from Core for convenience) ─────────
 
