@@ -1,14 +1,16 @@
 /**
  * UsbModeAdapter.h
  *
- * Bridge between Openterface_Core USB mode APIs and Qt's USB mode switching.
- * Provides type conversion and convenience wrappers for Core USB mode functions.
+ * Bridge between Openterface_Core USB mode APIs and Qt's USB mode types.
+ * Provides type conversion helpers for Core USB mode functions.
+ *
+ * Key features:
+ * - USB mode type conversion (Core op_usb_mode_t ↔ Qt bool isTarget)
+ * - USB mode label generation
  *
  * NOTE: Full delegation to Core's op_usb_mode_* API requires bridging Qt's
- * IHIDTransport to Core's op_transport_t/op_hid_device_session_t, which is
- * deferred to a later phase (transport abstraction). For now, this adapter
- * provides type conversions and documents the relationship between Qt and
- * Core implementations.
+ * IHIDTransport to Core's op_transport_t/op_hid_device_session_t (future work).
+ * For now, this adapter provides type conversions.
  *
  * The Core implementation in usb_mode_ms21xx.c performs the same register
  * read/modify/write operations as Qt's VideoHid::setSpdifout(), including
@@ -22,10 +24,10 @@
 
 namespace UsbModeAdapter {
 
-// ── USB mode type conversion (Core ↔ Qt) ──────────────────────────────────
+// ── USB mode type conversion (Core ↔ Qt) ─────────────────────────────
 
 /**
- * Convert Core USB mode to Qt boolean (isTarget)
+ * Convert Core USB mode to Qt boolean (isTarget).
  * OP_USB_MODE_TARGET → true, OP_USB_MODE_HOST → false
  */
 inline bool toQtIsTarget(op_usb_mode_t coreMode) {
@@ -33,7 +35,7 @@ inline bool toQtIsTarget(op_usb_mode_t coreMode) {
 }
 
 /**
- * Convert Qt boolean (isTarget) to Core USB mode
+ * Convert Qt boolean (isTarget) to Core USB mode.
  * true → OP_USB_MODE_TARGET, false → OP_USB_MODE_HOST
  */
 inline op_usb_mode_t toCoreUsbMode(bool isTarget) {

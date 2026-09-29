@@ -173,7 +173,7 @@ public:
     void onRecoveryFailed() override;
     void onRecoverySuccess() override;
 
-    // Phase 4: Health probe for Core watchdog
+    // Health probe for Core watchdog
     bool isConnectionHealthy() override;
     
     // Factory reset helper - polls for ready state after reconnection

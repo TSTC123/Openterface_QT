@@ -30,7 +30,7 @@
 #include <atomic>
 #include <functional>
 
-// Phase 4: Core watchdog integration
+// Core watchdog integration
 #include "openterface/watchdog.h"
 #include "openterface/transport.h"
 
@@ -113,7 +113,7 @@ public:
     /**
      * @brief Called by Core health probe to verify connection health
      *
-     * Phase 4: Used by Core's health_probe to determine if the connection
+     * Used by Core's health_probe to determine if the connection
      * is actually healthy. Override this to provide chip-specific health checks.
      *
      * @return true if connection is healthy, false otherwise
@@ -156,7 +156,7 @@ public:
 
     /**
      * @brief Get the current recovery handler
-     * Phase 4: Used by WatchdogAdapter bridge functions
+     * Used by WatchdogAdapter bridge functions
      */
     IRecoveryHandler* getRecoveryHandler() const { return m_recoveryHandler; }
     
@@ -254,11 +254,11 @@ public:
      */
     void forceRecovery();
 
-    // ========== Phase 4: Core Integration ==========
+    // ========== Core Integration ==========
 
     /**
      * @brief Called by Core state change callback to update Qt state
-     * Phase 4: Bridge between Core watchdog and Qt signals
+     * Bridge between Core watchdog and Qt signals
      */
     void onCoreStateChanged(op_connection_state_t newState, op_status_t lastError);
     
@@ -309,7 +309,7 @@ private:
     void updateErrorRate();
     Q_INVOKABLE bool isRecoveryScheduled() const;
 
-    // Phase 4: Core watchdog integration
+    // Core watchdog integration
     void createCoreWatchdog();
     void destroyCoreWatchdog();
 
@@ -321,11 +321,11 @@ private:
     std::atomic<bool> m_isShuttingDown{false};
     std::atomic<bool> m_isRunning{false};
 
-    // Phase 4: Core watchdog handle and stub transport
+    // Core watchdog handle and stub transport
     op_watchdog_t* m_coreWatchdog = nullptr;
     op_transport_t m_stubTransport;
 
-    // Phase 4: Error tracking - queries from Core, but keep atomic for thread-safe reads
+    // Error tracking - queries from Core, but keep atomic for thread-safe reads
     // These are updated via onCoreStateChanged() callback
     std::atomic<int> m_consecutiveErrors{0};
     std::atomic<int> m_totalErrors{0};

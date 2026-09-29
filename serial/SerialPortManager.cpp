@@ -4301,7 +4301,7 @@ void SerialPortManager::onRecoverySuccess()
     emit statusUpdate("Serial port recovered successfully");
 }
 
-// Phase 4: Health probe for Core watchdog
+// Health probe for Core watchdog
 bool SerialPortManager::isConnectionHealthy()
 {
     // Check basic connection state

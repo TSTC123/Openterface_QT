@@ -27,7 +27,7 @@
 #include <QMetaObject>
 
 // ============================================================================
-// Phase 4: Core callback bridge implementations
+// Core callback bridge implementations
 // ============================================================================
 
 /**
@@ -96,7 +96,7 @@ ConnectionWatchdog::ConnectionWatchdog(QObject *parent)
     m_uptimeTimer.start();
     m_errorRateTimer.start();
 
-    qCDebug(log_core_serial) << "ConnectionWatchdog initialized (Phase 4: Core delegation)";
+    qCDebug(log_core_serial) << "ConnectionWatchdog initialized (Core delegation)";
 }
 
 ConnectionWatchdog::~ConnectionWatchdog()
@@ -117,7 +117,7 @@ void ConnectionWatchdog::setConfig(const WatchdogConfig& config)
                           << "maxRetries=" << config.maxRetryAttempts
                           << "autoRecovery=" << config.autoRecoveryEnabled;
 
-    // Phase 4: Reconfigure Core watchdog if it exists
+    // Reconfigure Core watchdog if it exists
     if (m_coreWatchdog != nullptr) {
         op_watchdog_backoff_config_t backoffConfig;
         backoffConfig.base_interval_ms = static_cast<uint32_t>(config.baseRetryDelayMs);
@@ -174,14 +174,14 @@ void ConnectionWatchdog::start()
             return;
         }
 
-        // Phase 4: Create Core watchdog
+        // Create Core watchdog
         createCoreWatchdog();
 
         if (!m_watchdogTimer) {
             m_watchdogTimer = new QTimer(this);
-            m_watchdogTimer->setSingleShot(false);  // Phase 4: periodic tick
+            m_watchdogTimer->setSingleShot(false);  // periodic tick
             connect(m_watchdogTimer, &QTimer::timeout, this, [this]() {
-                // Phase 4: Drive Core's state machine with periodic tick
+                // Drive Core's state machine with periodic tick
                 if (m_coreWatchdog != nullptr) {
                     op_watchdog_tick(m_coreWatchdog, 100);  // 100ms tick interval
                 }
@@ -198,7 +198,7 @@ void ConnectionWatchdog::start()
         m_watchdogTimer->start(100);
 
         setConnectionState(ConnectionState::Connected);
-        qCInfo(log_core_serial) << "Watchdog started with 100ms tick (Phase 4: Core delegation)";
+        qCInfo(log_core_serial) << "Watchdog started with 100ms tick (Core delegation)";
     }, Qt::QueuedConnection);
 }
 
@@ -220,7 +220,7 @@ void ConnectionWatchdog::stop()
         m_recoveryTimer->stop();
     }
 
-    // Phase 4: Destroy Core watchdog
+    // Destroy Core watchdog
     destroyCoreWatchdog();
 
     setConnectionState(ConnectionState::Disconnected);
@@ -246,7 +246,7 @@ void ConnectionWatchdog::recordSuccess()
 {
     m_lastSuccessfulCommand.restart();
 
-    // Phase 4: Delegate to Core
+    // Delegate to Core
     if (m_coreWatchdog != nullptr) {
         op_watchdog_report_ok(m_coreWatchdog);
 
@@ -280,7 +280,7 @@ void ConnectionWatchdog::recordSuccess()
 
 void ConnectionWatchdog::recordError()
 {
-    // Phase 4: Delegate to Core
+    // Delegate to Core
     if (m_coreWatchdog != nullptr) {
         op_watchdog_report_error(m_coreWatchdog, OP_STATUS_IO_ERROR);
 
@@ -305,13 +305,13 @@ void ConnectionWatchdog::recordError()
         setConnectionState(ConnectionState::Unstable);
     }
 
-    // Phase 4: Core handles recovery triggering via state_cb
+    // Core handles recovery triggering via state_cb
     // We don't need to schedule recovery here - Core's state change callback will do it
 }
 
 void ConnectionWatchdog::resetCounters()
 {
-    // Phase 4: Reset Core state
+    // Reset Core state
     if (m_coreWatchdog != nullptr) {
         op_watchdog_reset_backoff(m_coreWatchdog);
     }
@@ -335,7 +335,7 @@ ConnectionStats ConnectionWatchdog::getStats() const
 {
     ConnectionStats stats;
 
-    // Phase 4: Query from Core if available
+    // Query from Core if available
     if (m_coreWatchdog != nullptr) {
         stats.consecutiveErrors = op_watchdog_consecutive_errors(m_coreWatchdog);
         stats.totalErrors = op_watchdog_total_errors(m_coreWatchdog);
@@ -360,7 +360,7 @@ ConnectionStats ConnectionWatchdog::getStats() const
 
 bool ConnectionWatchdog::isConnectionStable() const
 {
-    // Phase 4: Use Core state if available
+    // Use Core state if available
     if (m_coreWatchdog != nullptr) {
         op_connection_state_t coreState = op_watchdog_get_state(m_coreWatchdog);
         return coreState == OP_CONN_STATE_CONNECTED &&
@@ -378,7 +378,7 @@ void ConnectionWatchdog::forceRecovery()
 {
     qCInfo(log_core_serial) << "Force recovery requested";
 
-    // Phase 4: Delegate to Core
+    // Delegate to Core
     if (m_coreWatchdog != nullptr) {
         op_watchdog_force_reconnect(m_coreWatchdog);
     } else {
@@ -408,7 +408,7 @@ void ConnectionWatchdog::onWatchdogTimeout()
         emit statusUpdate(QString("No communication for %1 seconds")
                          .arg(m_config.communicationTimeoutMs / 1000));
 
-        // Phase 4: Report error to Core for state machine handling
+        // Report error to Core for state machine handling
         // Always report to Core when it exists - let Core's state machine decide
         // (autoRecoveryEnabled is checked in onCoreStateChanged before scheduling recovery)
         if (m_coreWatchdog != nullptr) {
@@ -452,7 +452,7 @@ void ConnectionWatchdog::executeRecovery()
     } else {
         qCWarning(log_core_serial) << "Recovery attempt" << m_retryAttemptCount.load() << "failed";
 
-        // Phase 4: Report failure to Core
+        // Report failure to Core
         if (m_coreWatchdog != nullptr) {
             op_watchdog_report_error(m_coreWatchdog, OP_STATUS_IO_ERROR);
         }
@@ -548,7 +548,7 @@ void ConnectionWatchdog::scheduleRecovery()
 
 int ConnectionWatchdog::calculateRetryDelay() const
 {
-    // Phase 4: Use Core's backoff calculation if available
+    // Use Core's backoff calculation if available
     if (m_coreWatchdog != nullptr) {
         uint32_t coreBackoff = op_watchdog_current_backoff_interval(m_coreWatchdog);
         if (coreBackoff > 0) {
@@ -576,7 +576,7 @@ bool ConnectionWatchdog::isRecoveryScheduled() const
     return m_recoveryTimer && m_recoveryTimer->isActive();
 }
 
-// ========== Phase 4: Core Watchdog Integration ==========
+// ========== Core Watchdog Integration ==========
 
 void ConnectionWatchdog::createCoreWatchdog()
 {
