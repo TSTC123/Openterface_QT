@@ -4,9 +4,15 @@
  * Bridge between Openterface_Core video status APIs and Qt's video status types.
  * Provides type conversion and unit conversion helpers for Core video status functions.
  *
+ * Key features:
+ * - Video status type conversion (Core op_video_input_status_t ↔ Qt VideoHidResolutionInfo)
+ * - Unit conversions: fps_milli ↔ fps float, pixel_clock_khz ↔ pixclk MHz
+ * - Video chip type conversion (reuse from DeviceAdapter)
+ * - Resolution normalization delegation to Core
+ *
  * NOTE: Full delegation to Core's op_video_status_* API requires bridging Qt's
- * IHIDTransport to Core's op_transport_t/op_hid_device_session_t (same as
- * UsbModeAdapter). For now, this adapter provides type and unit conversions.
+ * IHIDTransport to Core's op_transport_t/op_hid_device_session_t (future work).
+ * For now, this adapter provides type and unit conversions.
  *
  * The Core implementation in video_status_poller.c performs the same register
  * reads and normalization as Qt's VideoHid::getInputStatus() and
@@ -28,7 +34,7 @@ namespace VideoStatusAdapter {
 // ── Video status type conversion (Core ↔ Qt) ──────────────────────────────
 
 /**
- * Convert Core op_video_input_status_t to Qt VideoHidResolutionInfo
+ * Convert Core op_video_input_status_t to Qt VideoHidResolutionInfo.
  * Handles unit conversions:
  *   - fps_milli (e.g. 30000) → fps float (e.g. 30.0)
  *   - pixel_clock_khz (e.g. 148500) → pixclk float MHz (e.g. 148.5)
@@ -44,7 +50,7 @@ inline VideoHidResolutionInfo toQtVideoStatus(const op_video_input_status_t& cor
 }
 
 /**
- * Convert Qt VideoHidResolutionInfo to Core op_video_input_status_t
+ * Convert Qt VideoHidResolutionInfo to Core op_video_input_status_t.
  * Handles unit conversions:
  *   - fps float (e.g. 30.0) → fps_milli (e.g. 30000)
  *   - pixclk float MHz (e.g. 148.5) → pixel_clock_khz (e.g. 148500)

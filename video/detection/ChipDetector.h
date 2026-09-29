@@ -16,7 +16,7 @@ class VideoHid;
  * Encapsulates all platform-specific (Windows / Linux) VID/PID parsing so that
  * VideoHid::detectChipType() is a simple 3-line call.
  *
- * Phase 2: Ms2130sChip no longer needs a VideoHid* owner; all I/O goes through IHIDTransport.
+ * Ms2130sChip no longer needs a VideoHid* owner; all I/O goes through IHIDTransport.
  */
 class ChipDetector {
 public:

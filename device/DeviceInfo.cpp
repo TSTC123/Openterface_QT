@@ -98,10 +98,19 @@ bool DeviceInfo::operator!=(const DeviceInfo& other) const
     return !(*this == other);
 }
 
-// ── Core integration: capability and profile support ──────────────────
+// ── Core integration: device info, profile, and capability ──
+//
+// These methods bridge Qt's DeviceInfo with Core's device management APIs.
+// Core serves as the single source of truth for device identification,
+// profile matching, and capability queries, while Qt handles UI and
+// platform-specific backends.
 
 op_device_info_t DeviceInfo::toCoreDeviceInfo() const
 {
+    // Convert Qt DeviceInfo to Core's op_device_info_t format.
+    // Populates device identification, interface paths, and matches
+    // the device profile to retrieve capabilities, default baudrate,
+    // and protocol flags from Core's profile database.
     op_device_info_t coreDevice;
     op_device_info_init(&coreDevice);
 
@@ -179,18 +188,22 @@ op_device_info_t DeviceInfo::toCoreDeviceInfo() const
     return coreDevice;
 }
 
+// Query device capability via Core's op_device_info_has_capability() API
 bool DeviceInfo::hasCapability(op_capability_id_t capability) const
 {
     op_device_info_t coreDevice = toCoreDeviceInfo();
     return op_device_info_has_capability(&coreDevice, capability) != 0;
 }
 
+// Get device capabilities from matched profile
 op_capability_flags_t DeviceInfo::getCapabilities() const
 {
     op_device_info_t coreDevice = toCoreDeviceInfo();
     return coreDevice.capabilities;
 }
 
+// Match device to Core profile by VID/PID/interface flags
+// Returns profile ID if found, empty string otherwise
 QString DeviceInfo::matchProfile() const
 {
     op_device_info_t coreDevice = toCoreDeviceInfo();
@@ -206,6 +219,7 @@ QString DeviceInfo::matchProfile() const
     return QString();
 }
 
+// Check if device matches a specific profile ID
 bool DeviceInfo::matchesProfile(const QString& profileId) const
 {
     QString matchedProfile = matchProfile();

@@ -3,6 +3,20 @@
  *
  * Bridge between Openterface_Core device APIs and Qt's device management.
  * Provides type conversion and convenience wrappers for Core device functions.
+ *
+ * This adapter makes Core the single source of truth for device management,
+ * while Qt layer handles UI interaction and platform-specific backends.
+ *
+ * Key features:
+ * - Video chip type conversion between Core and Qt representations
+ * - Device info conversion (Qt DeviceInfo ↔ Core op_device_info_t)
+ * - Video chip detection via Core API (replaces hardcoded VID/PID checks)
+ * - Profile matching delegation to Core's op_profile_match()
+ * - Capability query delegation to Core's op_device_info_has_capability()
+ *
+ * Usage:
+ * - DeviceManager::getChipTypeForDevice() uses detectVideoChipType()
+ * - DeviceInfo::toCoreDeviceInfo() uses profile and capability APIs
  */
 
 #pragma once
@@ -53,11 +67,12 @@ inline op_video_chip_kind_t toCoreVideoChipKind(VideoChipType qtType) {
     }
 }
 
-// ── Device info conversion (Qt DeviceInfo ↔ Core op_device_info_t) ──────
+// ── Device info conversion (Qt DeviceInfo ↔ Core op_device_info_t) ──
 
 /**
- * Convert Qt DeviceInfo to Core op_device_info_t
- * Note: This is a partial conversion - only fills fields available in Qt DeviceInfo
+ * Convert Qt DeviceInfo to Core op_device_info_t.
+ * Partial conversion - only fills fields available in Qt DeviceInfo.
+ * Used by DeviceInfo::toCoreDeviceInfo() to bridge Qt and Core.
  */
 inline op_device_info_t toCoreDeviceInfo(const DeviceInfo& qtDevice) {
     op_device_info_t coreDevice;
@@ -119,20 +134,26 @@ inline op_device_info_t toCoreDeviceInfo(const DeviceInfo& qtDevice) {
 }
 
 // ── Video chip detection (delegates to Core) ────────────────────────────
+//
+// Replaces hardcoded VID/PID checks with Core API delegation.
+// DeviceManager::getChipTypeForDevice() uses detectVideoChipType() to
+// identify video chips via Core's op_video_chip_detect_from_device().
 
 /**
- * Detect video chip type from Qt DeviceInfo
- * Delegates to Core's op_video_chip_detect_from_device()
+ * Detect video chip type from Qt DeviceInfo.
+ * Delegates to Core's op_video_chip_detect_from_device().
+ * Replaces the previous hardcoded VID/PID checks in DeviceManager.
  */
 inline VideoChipType detectVideoChipType(const DeviceInfo& qtDevice) {
+    // Convert to Core device info and detect chip via Core API
     op_device_info_t coreDevice = toCoreDeviceInfo(qtDevice);
     op_video_chip_kind_t chipKind = op_video_chip_detect_from_device(&coreDevice);
     return toQtVideoChipType(chipKind);
 }
 
 /**
- * Get string label for video chip type
- * Delegates to Core's op_video_chip_kind_label()
+ * Get string label for video chip type.
+ * Delegates to Core's op_video_chip_kind_label().
  */
 inline QString videoChipTypeLabel(VideoChipType chipType) {
     op_video_chip_kind_t coreKind = toCoreVideoChipKind(chipType);

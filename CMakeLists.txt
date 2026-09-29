@@ -46,6 +46,21 @@ message(STATUS "OPENTERFACE_IS_AMD64: ${OPENTERFACE_IS_AMD64}")
 
 include(cmake/Configuration.cmake)
 
+# =============================================================================
+# Openterface Core SDK (git submodule)
+# =============================================================================
+if(NOT EXISTS "${CMAKE_SOURCE_DIR}/core/CMakeLists.txt")
+    message(FATAL_ERROR
+        "Core submodule not found. Run: git submodule update --init --recursive")
+endif()
+
+# Core CMake options: disable CLI demo and tests (QT has its own)
+set(BUILD_NATIVE_CORE ON CACHE BOOL "Build native platform layer" FORCE)
+set(BUILD_CLI OFF CACHE BOOL "Build CLI demo tool" FORCE)
+set(BUILD_TESTS OFF CACHE BOOL "Build unit tests" FORCE)
+add_subdirectory(core)
+message(STATUS "Openterface Core SDK integrated from: ${CMAKE_SOURCE_DIR}/core")
+
 # Include static linking configuration for compression libraries
 include(cmake/StaticLinking.cmake)
 
@@ -64,7 +79,8 @@ find_package(Qt6Required REQUIRED)
 # Find additional Qt components (Qt6Required already found Core, Widgets, Gui, Multimedia, SerialPort, Svg)
 # Note: HttpServer is NOT required — the SSE transport uses raw QTcpServer (Qt6::Network)
 # for Qt 6.5+ compatibility. See server/mcp/mcpSseTransport.h.
-find_package(Qt6 REQUIRED COMPONENTS Network OpenGL OpenGLWidgets Xml Concurrent DBus)
+# Removed Xml and OpenGL/OpenGLWidgets (no code usage found)
+find_package(Qt6 REQUIRED COMPONENTS Network Concurrent DBus)
 
 # Find Tesseract OCR (optional - for screen_to_markdown feature)
 find_package(PkgConfig QUIET)
@@ -121,6 +137,7 @@ setup_translations(openterfaceQT)
 # Ensure target can find project headers (needed for includes like "serial/SerialPortManager.h" and "ui/statusevents.h")
 target_include_directories(openterfaceQT PRIVATE
     ${PROJECT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/core/include
 )
 
 # Ensure Linux time feature macros are set per-target to avoid <ctime> visibility issues
@@ -178,7 +195,7 @@ else()
     message(STATUS "Qt6::HttpServer not found - using raw QTcpServer for Qt 6.5 compatibility")
 endif()
 
-target_link_libraries(${PROJECT_NAME} PRIVATE Qt6::Core Qt6::Widgets Qt6::Gui Qt6::Network Qt6::Multimedia Qt6::MultimediaWidgets Qt6::SerialPort Qt6::OpenGL Qt6::OpenGLWidgets Qt6::Xml Qt6::Svg Qt6::SvgWidgets Qt6::Concurrent Qt6::DBus ${QT_HTTPSERVER_LIB} Threads::Threads)
+target_link_libraries(${PROJECT_NAME} PRIVATE Qt6::Core Qt6::Widgets Qt6::Gui Qt6::Network Qt6::Multimedia Qt6::MultimediaWidgets Qt6::SerialPort Qt6::Svg Qt6::SvgWidgets Qt6::Concurrent Qt6::DBus ${QT_HTTPSERVER_LIB} Threads::Threads openterface_core)
 
 # Link Tesseract OCR libraries if found
 if(TESSERACT_FOUND AND LEPTONICA_FOUND)
