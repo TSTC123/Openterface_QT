@@ -30,6 +30,10 @@
 #include <atomic>
 #include <functional>
 
+// Phase 4: Core watchdog integration
+#include "openterface/watchdog.h"
+#include "openterface/transport.h"
+
 Q_DECLARE_LOGGING_CATEGORY(log_core_serial)
 
 /**
@@ -82,29 +86,39 @@ struct WatchdogConfig {
 
 /**
  * @brief Interface for recovery actions
- * 
+ *
  * Implement this interface to provide custom recovery logic
  */
 class IRecoveryHandler {
 public:
     virtual ~IRecoveryHandler() = default;
-    
+
     /**
      * @brief Called when recovery is needed
      * @param attempt Current recovery attempt number (1-based)
      * @return true if recovery was successful
      */
     virtual bool performRecovery(int attempt) = 0;
-    
+
     /**
      * @brief Called when recovery has failed after all attempts
      */
     virtual void onRecoveryFailed() = 0;
-    
+
     /**
      * @brief Called when recovery succeeds
      */
     virtual void onRecoverySuccess() = 0;
+
+    /**
+     * @brief Called by Core health probe to verify connection health
+     *
+     * Phase 4: Used by Core's health_probe to determine if the connection
+     * is actually healthy. Override this to provide chip-specific health checks.
+     *
+     * @return true if connection is healthy, false otherwise
+     */
+    virtual bool isConnectionHealthy() { return true; }
 };
 
 /**
@@ -139,6 +153,12 @@ public:
      * @brief Set the recovery handler
      */
     void setRecoveryHandler(IRecoveryHandler* handler);
+
+    /**
+     * @brief Get the current recovery handler
+     * Phase 4: Used by WatchdogAdapter bridge functions
+     */
+    IRecoveryHandler* getRecoveryHandler() const { return m_recoveryHandler; }
     
     /**
      * @brief Enable or disable auto recovery
@@ -228,11 +248,19 @@ public:
     int getRetryAttemptCount() const { return m_retryAttemptCount.load(); }
     
     // ========== Manual Recovery ==========
-    
+
     /**
      * @brief Force a recovery attempt
      */
     void forceRecovery();
+
+    // ========== Phase 4: Core Integration ==========
+
+    /**
+     * @brief Called by Core state change callback to update Qt state
+     * Phase 4: Bridge between Core watchdog and Qt signals
+     */
+    void onCoreStateChanged(op_connection_state_t newState, op_status_t lastError);
     
 signals:
     /**
@@ -280,32 +308,41 @@ private:
     int calculateRetryDelay() const;
     void updateErrorRate();
     Q_INVOKABLE bool isRecoveryScheduled() const;
-    
+
+    // Phase 4: Core watchdog integration
+    void createCoreWatchdog();
+    void destroyCoreWatchdog();
+
     // Configuration
     WatchdogConfig m_config;
-    
+
     // State
     ConnectionState m_connectionState = ConnectionState::Disconnected;
     std::atomic<bool> m_isShuttingDown{false};
     std::atomic<bool> m_isRunning{false};
-    
-    // Error tracking
+
+    // Phase 4: Core watchdog handle and stub transport
+    op_watchdog_t* m_coreWatchdog = nullptr;
+    op_transport_t m_stubTransport;
+
+    // Phase 4: Error tracking - queries from Core, but keep atomic for thread-safe reads
+    // These are updated via onCoreStateChanged() callback
     std::atomic<int> m_consecutiveErrors{0};
     std::atomic<int> m_totalErrors{0};
     std::atomic<int> m_retryAttemptCount{0};
     std::atomic<int> m_successfulRecoveries{0};
-    
+
     // Timers
-    QTimer* m_watchdogTimer = nullptr;
-    QTimer* m_recoveryTimer = nullptr;
+    QTimer* m_watchdogTimer = nullptr;      // Drives op_watchdog_tick()
+    QTimer* m_recoveryTimer = nullptr;      // Recovery delay timer (Qt-side coordination)
     QElapsedTimer m_lastSuccessfulCommand;
     QElapsedTimer m_uptimeTimer;
     QElapsedTimer m_errorRateTimer;
-    
+
     // Error rate tracking
     int m_errorsInWindow = 0;
     static const int ERROR_RATE_WINDOW_MS = 1000;  // 1 second window
-    
+
     // Recovery handler
     IRecoveryHandler* m_recoveryHandler = nullptr;
 };

@@ -4301,6 +4301,26 @@ void SerialPortManager::onRecoverySuccess()
     emit statusUpdate("Serial port recovered successfully");
 }
 
+// Phase 4: Health probe for Core watchdog
+bool SerialPortManager::isConnectionHealthy()
+{
+    // Check basic connection state
+    // Note: We intentionally do NOT check m_targetRecoveryInProgress here.
+    // The health probe is called by Core to verify connection health.
+    // During recovery, Qt explicitly reports success/failure via op_watchdog_report_ok/error().
+    // Checking m_targetRecoveryInProgress could cause a feedback loop where Core
+    // interprets "recovery in progress" as "recovery failed".
+    if (!serialPort || !serialPort->isOpen()) {
+        return false;
+    }
+
+    if (!ready) {
+        return false;
+    }
+
+    return true;
+}
+
 // Helper function to poll for ready state after factory reset
 // This handles the case where onSerialPortConnected triggers async retry logic
 void SerialPortManager::startReadyStatePolling(const QString& portName)
