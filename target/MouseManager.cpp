@@ -61,6 +61,7 @@ void MouseManager::handleAbsoluteMouseAction(int x, int y, int mouse_event, int 
     QByteArray data;
     uint8_t mappedWheelMovement = mapScrollWheel(wheelMovement);
     if(mappedWheelMovement>0){    qCDebug(log_mouse_abs) << "mappedWheelMovement:" << mappedWheelMovement; }
+
     // Use Core packet builder (via SerialProtocolAdapter) — strips checksum for sendCommandAsync
     data = SerialProtocolAdapter::buildMouseAbsPacket(
         static_cast<uint8_t>(mouse_event),
@@ -99,6 +100,7 @@ void MouseManager::handleRelativeMouseAction(int dx, int dy, int mouse_event, in
     QByteArray data;
     uint8_t mappedWheelMovement = mapScrollWheel(wheelMovement);
     if(mappedWheelMovement>0){    qCDebug(log_mouse_rel) << "mappedWheelMovement:" << mappedWheelMovement; }
+
     // Use Core packet builder (via SerialProtocolAdapter) — strips checksum for sendCommandAsync
     data = SerialProtocolAdapter::buildMouseRelPacket(
         static_cast<uint8_t>(mouse_event),

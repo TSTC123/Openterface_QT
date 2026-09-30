@@ -84,8 +84,7 @@ QByteArray CH9329Strategy::buildReconfigurationCommand(int targetBaudrate, uint8
     // Append the mid portion of the command
     command.append(CMD_SET_PARA_CFG_MID);
 
-    // DEBUG: Log complete command before checksum is added
-    qCDebug(log_core_serial) << "[DEBUG buildReconfigurationCommand] Complete command (before checksum):" << command.toHex(' ')
+    qCDebug(log_core_serial) << "buildReconfigurationCommand: Complete command (before checksum):" << command.toHex(' ')
                              << "Length:" << command.size() << "bytes";
 
     return command;
@@ -126,10 +125,10 @@ bool CH9329Strategy::performReset(
     
     // Build and send reconfiguration command
     QByteArray configCommand = buildReconfigurationCommand(targetBaudrate, mode);
-    qCDebug(log_core_serial) << "[DEBUG performReset] Sending CMD_SET_PARA_CFG:" << configCommand.toHex(' ');
+    qCDebug(log_core_serial) << "performReset: Sending CMD_SET_PARA_CFG:" << configCommand.toHex(' ');
     QByteArray response = sendSyncCommand(configCommand, true);
 
-    qCDebug(log_core_serial) << "[DEBUG CH9329 performReset] Target baudrate:" << targetBaudrate
+    qCDebug(log_core_serial) << "performReset: Target baudrate:" << targetBaudrate
                              << "Command sent:" << configCommand.toHex(' ')
                              << "Response received:" << response.toHex(' ')
                              << "Response size:" << response.size();
@@ -151,13 +150,13 @@ bool CH9329Strategy::performReset(
         }
 
         // Wait for Flash write to complete (typical NOR Flash needs 10-20ms)
-        qCDebug(log_core_serial) << "[DEBUG performReset] Waiting 50ms for Flash write to complete...";
+        qCDebug(log_core_serial) << "performReset: Waiting 50ms for Flash write to complete...";
         QThread::msleep(50);
 
         // Send reset command
-        qCDebug(log_core_serial) << "[DEBUG CH9329 performReset] Sending CMD_RESET...";
+        qCDebug(log_core_serial) << "performReset: Sending CMD_RESET...";
         QByteArray resetResponse = sendSyncCommand(CMD_RESET, true);
-        qCDebug(log_core_serial) << "[DEBUG CH9329 performReset] CMD_RESET response:" << resetResponse.toHex(' ');
+        qCDebug(log_core_serial) << "performReset: CMD_RESET response:" << resetResponse.toHex(' ');
 
         if (resetResponse.isEmpty()) {
             qCWarning(log_core_serial) << "CH9329: Reset command failed";

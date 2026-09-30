@@ -24,11 +24,14 @@ QByteArray buildKeyboardCh9329Packet(uint8_t modifiers, const uint8_t extraKeys[
 // ── Checksum bridge (delegates to Core op_input_checksum) ────────────────
 
 inline uint8_t calculateChecksum(const QByteArray& data) {
-    return op_input_checksum(reinterpret_cast<const uint8_t*>(data.constData()), data.size());
+    // op_input_checksum expects packet WITH checksum byte at end, so it sums len-1 bytes.
+    // But here data has NO checksum yet, so we pass size+1 to include all bytes.
+    return op_input_checksum(reinterpret_cast<const uint8_t*>(data.constData()), data.size() + 1);
 }
 
 inline uint8_t calculateChecksum(const uint8_t* data, int len) {
-    return op_input_checksum(data, len);
+    // Same fix: pass len+1 to include all bytes
+    return op_input_checksum(data, len + 1);
 }
 
 // ── Protocol constants (re-exported from Core for convenience) ─────────
