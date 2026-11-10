@@ -351,6 +351,23 @@ for config in "${UNIFIED_LIBRARY_CONFIGS[@]}"; do
     copy_libraries "$var_name" "$display_name" "$lib_pattern" "$severity" "$target_dir" "${search_dirs[@]}"
 done
 
+# ============================================================
+# Resolve GStreamer videoconvert/videoscale plugin conflict
+# GStreamer >= 1.22 merged videoconvert + videoscale into
+# libgstvideoconvertscale.so. If the combined plugin is present
+# alongside the old separate plugins, GStreamer will try to
+# register the same types twice and abort on startup.
+# Keep only the combined plugin when both exist.
+# ============================================================
+GST_BUNDLE_DIR="${PKG_ROOT}/usr/lib/openterfaceqt/gstreamer/gstreamer-1.0"
+if [ -e "${GST_BUNDLE_DIR}/libgstvideoconvertscale.so" ]; then
+    echo "🔧 GStreamer combined plugin (libgstvideoconvertscale.so) found;"
+    echo "   removing old separate plugins to avoid type registration conflicts..."
+    rm -f "${GST_BUNDLE_DIR}"/libgstvideoconvert.so*
+    rm -f "${GST_BUNDLE_DIR}"/libgstvideoscale.so*
+    echo "   ✅ Removed libgstvideoconvert.so* and libgstvideoscale.so*"
+fi
+
 # Without videoconvert/videoscale GStreamer cannot build the capture pipeline at all
 # (the QImage fallback branch needs videoconvert too). Fail packaging instead of
 # silently shipping a deb that shows a black video pane.
